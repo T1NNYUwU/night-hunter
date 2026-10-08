@@ -9,3 +9,4 @@ sourcemap.json
 .DS_Store
 Thumbs.db
 .vscode/
+!backend/uv.lock
