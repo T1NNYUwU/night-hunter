@@ -16,6 +16,10 @@ local remotes = ReplicatedStorage:WaitForChild("NightHunterRemotes")
 local state = Workspace:WaitForChild("NightHunterState")
 
 player.CameraMode = Enum.CameraMode.LockFirstPerson
+-- One item, switched with F / the LIGHT button: the default hotbar only covers our HUD.
+pcall(function()
+	game:GetService("StarterGui"):SetCoreGuiEnabled(Enum.CoreGuiType.Backpack, false)
+end)
 
 ---------------------------------------------------------------- controls
 
@@ -106,7 +110,7 @@ local debugInfo = label({ frame = UDim2.fromOffset(280, 20), pos = UDim2.fromOff
 debugInfo.Visible = RunService:IsStudio()
 
 local banner = label({ frame = UDim2.fromOffset(560, 90), pos = UDim2.fromScale(0.5, 0.22), anchor = Vector2.new(0.5, 0.5), size = 32, font = Enum.Font.GothamBold, stroke = 0.4 })
-local downNotice = label({ frame = UDim2.fromOffset(560, 40), pos = UDim2.fromScale(0.5, 0.62), anchor = Vector2.new(0.5, 0.5), size = 22, font = Enum.Font.GothamBold, color = Color3.fromRGB(255, 90, 90), stroke = 0.3 })
+local downNotice = label({ frame = UDim2.fromOffset(620, 70), pos = UDim2.fromScale(0.5, 0.62), anchor = Vector2.new(0.5, 0.5), size = 22, font = Enum.Font.GothamBold, color = Color3.fromRGB(255, 90, 90), stroke = 0.3 })
 
 local function bar(name: string, y: number, color: Color3)
 	local back = Instance.new("Frame")
@@ -157,25 +161,59 @@ flash.Parent = gui
 
 ---------------------------------------------------------------- flashlight beam (local)
 
--- The held tool's light points wherever the arm points; for your own view the beam follows
--- the camera instead. Other players still see the tool's light.
-local beamPart = Instance.new("Part")
-beamPart.Name = "LocalFlashlight"
-beamPart.Anchored = true
-beamPart.CanCollide = false
-beamPart.CanQuery = false
-beamPart.CanTouch = false
+-- The held tool's light points wherever the arm points, and the tool itself floats oddly in
+-- first person. For your OWN view we hide the tool and draw a small flashlight in the lower
+-- right of the screen (a viewmodel) whose beam follows the camera. Other players still see
+-- the real tool and its light.
+local VIEW_OFFSET = CFrame.new(0.85, -0.75, -1.5) * CFrame.Angles(math.rad(2), math.rad(4), 0)
+
+local function viewPart(name, size, color, material, shape)
+	local p = Instance.new("Part")
+	p.Name = name
+	p.Anchored = true
+	p.CanCollide = false
+	p.CanQuery = false
+	p.CanTouch = false
+	p.CastShadow = false
+	p.Size = size
+	p.Color = color
+	p.Material = material
+	if shape then
+		p.Shape = shape
+	end
+	return p
+end
+
+local viewmodel = Instance.new("Model")
+viewmodel.Name = "FlashlightViewmodel"
+-- Cylinders run along X; the body is turned so X points forward (-Z of the camera).
+local vmBody = viewPart("Body", Vector3.new(1.1, 0.26, 0.26), Color3.fromRGB(28, 28, 32), Enum.Material.Metal, Enum.PartType.Cylinder)
+local vmHead = viewPart("Head", Vector3.new(0.3, 0.36, 0.36), Color3.fromRGB(40, 40, 46), Enum.Material.Metal, Enum.PartType.Cylinder)
+local vmLens = viewPart("Lens", Vector3.new(0.04, 0.3, 0.3), Color3.fromRGB(255, 240, 200), Enum.Material.Glass, Enum.PartType.Cylinder)
+vmBody.Parent = viewmodel
+vmHead.Parent = viewmodel
+vmLens.Parent = viewmodel
+viewmodel.Parent = Workspace.CurrentCamera -- parts under the camera render only for this player
+
+-- Lights do not shine from parts parented to the camera, so the beam lives in Workspace.
+-- It is created by this LocalScript, so it exists only on this client.
+local beamPart = viewPart("LocalFlashlightBeam", Vector3.new(0.2, 0.2, 0.2), Color3.new(1, 1, 1), Enum.Material.SmoothPlastic)
 beamPart.Transparency = 1
-beamPart.Size = Vector3.new(0.2, 0.2, 0.2)
-beamPart.Parent = Workspace.CurrentCamera
+beamPart.Parent = Workspace
 local localBeam = Instance.new("SpotLight")
 localBeam.Face = Enum.NormalId.Front
-localBeam.Angle = 50
-localBeam.Range = 42
-localBeam.Brightness = 3
+localBeam.Angle = 55
+localBeam.Range = 45
+localBeam.Brightness = 4
 localBeam.Color = Color3.fromRGB(255, 244, 220)
 localBeam.Shadows = true
 localBeam.Parent = beamPart
+local glow = Instance.new("PointLight") -- a faint spill around you so walls next to you are not pitch black
+glow.Range = 7
+glow.Brightness = 0.35
+glow.Color = localBeam.Color
+glow.Shadows = false
+glow.Parent = beamPart
 
 ---------------------------------------------------------------- feedback loops
 
@@ -212,13 +250,31 @@ RunService:BindToRenderStep("NightHunterView", Enum.RenderPriority.Camera.Value 
 		humanoid.CameraOffset = Vector3.new(0, y + (targetY - y) * 0.2, 0)
 	end
 
-	-- Local beam follows the camera; hide the hand-held beam in our own view.
+	-- Viewmodel + local beam follow the camera; the real tool is hidden in our own view.
 	local lightOn = player:GetAttribute("Flashlight") == true
-	beamPart.CFrame = camera.CFrame * CFrame.new(0.6, -0.5, 0)
-	localBeam.Enabled = lightOn
 	local tool = character and character:FindFirstChild("Flashlight")
-	if tool and tool:FindFirstChild("Handle") and tool.Handle:FindFirstChild("Beam") then
-		tool.Handle.Beam.Enabled = false
+	local holding = tool ~= nil and not player:GetAttribute("Downed")
+	local bob = if humanoid and humanoid.MoveDirection.Magnitude > 0.1 then math.sin(os.clock() * 9) * 0.03 else 0
+	local hand = camera.CFrame * VIEW_OFFSET * CFrame.new(0, bob, 0)
+	local forward = CFrame.Angles(0, math.rad(90), 0) -- cylinder X axis → camera forward
+	vmBody.CFrame = hand * forward
+	vmHead.CFrame = hand * CFrame.new(0, 0, -0.65) * forward
+	vmLens.CFrame = hand * CFrame.new(0, 0, -0.82) * forward
+	vmLens.Material = if lightOn then Enum.Material.Neon else Enum.Material.Glass
+	for _, p in viewmodel:GetChildren() do
+		p.Transparency = if holding then 0 else 1
+	end
+	beamPart.CFrame = camera.CFrame * CFrame.new(0.6, -0.5, -1)
+	localBeam.Enabled = lightOn and holding
+	glow.Enabled = lightOn and holding
+	if tool then
+		for _, p in tool:GetDescendants() do
+			if p:IsA("BasePart") then
+				p.LocalTransparencyModifier = 1
+			elseif p:IsA("Light") then
+				p.Enabled = false -- local only: others still see the tool's light
+			end
+		end
 	end
 
 	-- Hunter proximity: vignette pulses faster and harder the closer it is.
