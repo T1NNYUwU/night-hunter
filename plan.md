@@ -1,6 +1,8 @@
 # Night Hunter — แผนโปรเจคจบ (ชื่อชั่วคราว)
 
-> สถานะ: **Playable v1 — M1, M2, M3 เสร็จ** (ปีศาจตาบอด, บุรุษที่ 1 + ไฟฉาย, บ้าน 16 ห้อง + asset + เสียง, หน้าเริ่มเกม/ร้านค้า/ภารกิจ 3 แบบ/หนีออกคืน 7/DataStore) ดู [docs/playable-v1.md](docs/playable-v1.md) · ถัดไป: M4 POMCP/hybrid + telemetry + playtest · อัปเดตล่าสุด 2026-10-08
+> สถานะ: **M1–M4 (โค้ด) เสร็จ** — เกมเล่นได้ครบ 7 คืน + ปีศาจ POMCP + opponent model + telemetry + backend ([docs/m4-research.md](docs/m4-research.md))
+> ผลตัวจำลอง: POMCP จับผู้เล่นซ่อนได้ 81.5% vs belief 50.5% vs rule 34.5% (p < 0.001); opponent model เพิ่มอีกมาก
+> ถัดไป: deploy backend + playtest กับคนจริง ([docs/playtest.md](docs/playtest.md)) · อัปเดตล่าสุด 2026-10-08
 > เอกสารนี้คือแผนทั้งโปรเจค แผนแยกงานรายไฟล์ (task-by-task) จะเขียนหลังสปายก์ เพราะผลสปายก์อาจเปลี่ยนสถาปัตยกรรม
 
 ---

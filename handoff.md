@@ -14,7 +14,8 @@
 - เสร็จ (2026-10-08): **M2** บ้าน 16 ห้อง, เฟอร์นิเจอร์จาก Creator Store (ตรวจแล้ว ดู [docs/assets.md](docs/assets.md)), เสียง (`Sounds.luau`)
 - เสร็จ (2026-10-08): โมเดลปีศาจใหม่ (`AssetLibrary.HunterRig` + ท่าทางขยับข้อต่อฝั่ง client)
 - เสร็จ (2026-10-08): **M3** หน้าเริ่มเกม (PLAY / วิธีเล่น / สถิติ), ร้านค้าตอนกลางวัน + ไอเทม 3 อย่าง, เหรียญ, ภารกิจ 3 แบบ (ลัง / ฟิวส์ / กุญแจ + หนีออกประตูหน้า คืน 7), บันทึกความคืบหน้าด้วย DataStore
-- ยังไม่ทำ: POMCP / hybrid hunter, opponent model, telemetry backend, ชุดทดลอง, playtest (M4)
+- เสร็จ (2026-10-08): **M4 (ส่วนโค้ด)** POMCP, opponent model, telemetry, backend (`backend/`), ชุดทดลองในตัวจำลอง — ผลอยู่ใน [docs/m4-research.md](docs/m4-research.md)
+- ยังไม่ทำ: deploy backend + เปิด HttpService + playtest กับคนจริง ([docs/playtest.md](docs/playtest.md))
 
 ## โครงสร้างไฟล์ (Rojo project: `default.project.json`)
 | ที่อยู่ | ใน Studio | หน้าที่ |
@@ -27,6 +28,12 @@
 | `src/shared/Acoustics.luau` | 〃 | โมเดลเสียง: ความดัง, การลดทอนข้ามห้อง, ความเร็วแต่ละท่า (ใช้ทั้งเกมและตัวจำลอง) |
 | `src/server/Main.server.luau` | ServerScriptService.NightHunter | จุดเริ่ม: สร้าง/ใช้บ้าน → NightCycle |
 | `src/shared/Items.luau` | 〃 | ไอเทมในร้าน (ราคา, จำนวนสูงสุด, ปุ่ม) และเหรียญรางวัลแต่ละภารกิจ |
+| `src/shared/OpponentModel.luau` | 〃 | โมเดลการเคลื่อนที่ของผู้เล่น (fit / step / evaluate) — มี port Python ใน `backend/app/opponent_model.py` |
+| `src/shared/Pomcp.luau` | 〃 | Monte Carlo tree search บนความเชื่อ (งบเวลา 4 ms ในเกม) |
+| `src/shared/DefaultModel.luau` | 〃 | opponent model เริ่มต้น (ฝึกจากบอท) ใช้เมื่อยังไม่มีโมเดลจาก backend |
+| `src/server/Config.luau` | ServerScriptService.NightHunter | ตารางสมองปีศาจรายคืน (story) / เงื่อนไข A/B (experiment) |
+| `src/server/Telemetry.luau` | 〃 | บันทึกทุกคืนแบบไม่ระบุตัวตน ส่ง backend, โหลดโมเดลล่าสุด |
+| `backend/` | — | FastAPI + DB: รับ telemetry, ฝึก/เปิดใช้โมเดล, สถิติ, dashboard (ดู backend/README.md) |
 | `src/server/NightCycle.luau` | 〃 | เฟส Waiting/Day/Night/Report, ตารางภารกิจ 7 คืน (ลัง/ฟิวส์/กุญแจ), ล้ม/ฟื้น, รัง, ความยากรายคืน, ปุ่ม debug ใน Studio |
 | `src/server/Economy.luau` | 〃 | เหรียญ, ซื้อของ (กลางวัน), ใช้ของ (กลางคืน): Noise Maker / Battery / Adrenaline |
 | `src/server/Progress.luau` | 〃 | DataStore: คืนที่ไปได้ไกลสุด + จำนวนครั้งที่หนีรอด |
@@ -69,7 +76,15 @@
 - จบกลางวัน/รายงานทันที: `workspace.NightHunterState:SetAttribute("DebugSkipPhase", os.clock())`
 - ทดสอบ ProximityPrompt ด้วยสคริปต์: ในมุมมองบุรุษที่ 1 ตัวละครหันตามกล้อง ต้องหันกล้อง (`Camera.CFrame`) ไปที่ของก่อน prompt ถึงจะขึ้น
 - DataStore ใน Studio จะเตือน 1 ครั้งถ้ายังไม่เปิด "Enable Studio Access to API Services" (เกมยังเล่นได้)
+- ดู telemetry คืนล่าสุด: `workspace.NightHunterState:SetAttribute("DebugDumpTelemetry", os.clock())` แล้วอ่าน attribute `DebugTelemetryJson`
+- ปุ่ม M ใน Studio: สลับสมอง rule → belief → pomcp → pomcp+model
+- ตัวจำลองเทียบสมอง (command bar): `print(require(game.ReplicatedStorage.NightHunter:Clone().Sim).report({ episodes = 100, brains = {"rule","belief","pomcp"}, lair = "random", wakeTicks = 16, yield = true }))`
+- Telemetry ไม่ได้ตั้ง URL จะเตือน 1 ครั้ง "Telemetry offline (game unaffected)" — ปกติ
+- backend: `cd backend && uv sync --group dev && uv run pytest`
 
 ## งานถัดไป (เรียงตามลำดับ)
-1. ให้คนเล่นจริงลอง M3 (หน้าตา, ร้าน, ความยากของคืนฟิวส์/กุญแจ) และทดสอบช่วยฟื้นด้วย 2 คน
-2. M4: POMCP / hybrid hunter, opponent model, telemetry backend, ชุดทดลอง, playtest 15–30 คน
+1. Deploy backend เป็น HTTPS (เช่น Render / Railway / Fly) → ตั้ง ServerStorage `TelemetryUrl`, secret `nighthunter_api_key`, เปิด Allow HTTP Requests
+2. ให้คนเล่นจริงลอง (story mode) เพื่อเก็บ trajectory → `POST /v1/train` ได้โมเดลจากคนจริงตัวแรก
+3. Playtest experiment mode 15–30 คน + แบบสอบถาม ([docs/playtest.md](docs/playtest.md))
+4. ทดสอบช่วยฟื้นด้วย 2 คน, ดูหน้าตา UI บนมือถือ
+5. (ถ้ามีเวลา) ใส่เสียงใน observation ของ POMCP, opponent model รายคน, สถิติแบบ paired
