@@ -21,7 +21,6 @@ local DOOR_WIDTH = 6
 local HALF = HouseGraph.ROOM_SIZE / 2
 
 local WALL_COLOR = Color3.fromRGB(62, 46, 38) -- shows only as door jambs and lintels
-local CLOSET_COLOR = Color3.fromRGB(110, 75, 45)
 
 local HouseBuilder = {}
 
@@ -38,15 +37,6 @@ local function part(parent, name, size, position, color, material, transparency)
 	p.BottomSurface = Enum.SurfaceType.Smooth
 	p.Parent = parent
 	return p
-end
-
-local function hasDoor(graph, a, b)
-	for _, door in graph.doors do
-		if (door[1] == a and door[2] == b) or (door[1] == b and door[2] == a) then
-			return true
-		end
-	end
-	return false
 end
 
 -- A wall along X (alongX = true) or along Z, centred at `center`, optionally with a door gap.
@@ -67,19 +57,6 @@ local function wall(parent, center: Vector3, alongX: boolean, withDoor: boolean)
 		local offset = if alongX then Vector3.new(sign * shift, y, 0) else Vector3.new(0, y, sign * shift)
 		part(parent, "Wall", size, center + offset, WALL_COLOR, Enum.Material.Wood)
 	end
-end
-
-local function closet(parent, pos: Vector3, room: number)
-	-- Open towards the room centre along X, so players walk in from the room side.
-	local toCenter = HouseGraph.roomCenter(room) - (pos - ORIGIN)
-	local sx = if toCenter.X > 0 then -1 else 1 -- back wall side
-	local model = Instance.new("Model")
-	model.Name = "Closet"
-	part(model, "Back", Vector3.new(0.4, 8, 4.4), pos + Vector3.new(sx * 2, 4, 0), CLOSET_COLOR, Enum.Material.Wood)
-	part(model, "SideA", Vector3.new(4.4, 8, 0.4), pos + Vector3.new(0, 4, 2.2), CLOSET_COLOR, Enum.Material.Wood)
-	part(model, "SideB", Vector3.new(4.4, 8, 0.4), pos + Vector3.new(0, 4, -2.2), CLOSET_COLOR, Enum.Material.Wood)
-	part(model, "Top", Vector3.new(4.4, 0.4, 4.4), pos + Vector3.new(0, 8.2, 0), CLOSET_COLOR, Enum.Material.Wood)
-	model.Parent = parent
 end
 
 local function effect(className, name, props)
@@ -158,10 +135,10 @@ function HouseBuilder.build(graph)
 	-- Walls: one pass over every room edge; shared walls are emitted once (by the left/top room).
 	for room = 1, graph.roomCount do
 		local index = room - 1
-		local col, row = index % 3, index // 3
+		local col, row = index % HouseGraph.COLS, index // HouseGraph.COLS
 		local center = ORIGIN + HouseGraph.roomCenter(room)
-		wall(root, center + Vector3.new(HALF, 0, 0), false, col < 2 and hasDoor(graph, room, room + 1)) -- east
-		wall(root, center + Vector3.new(0, 0, HALF), true, row < 2 and hasDoor(graph, room, room + 3)) -- south
+		wall(root, center + Vector3.new(HALF, 0, 0), false, col < HouseGraph.COLS - 1 and HouseGraph.hasDoor(graph, room, room + 1)) -- east
+		wall(root, center + Vector3.new(0, 0, HALF), true, row < HouseGraph.ROWS - 1 and HouseGraph.hasDoor(graph, room, room + HouseGraph.COLS)) -- south
 		if col == 0 then
 			wall(root, center - Vector3.new(HALF, 0, 0), false, false) -- west outer
 		end
@@ -171,9 +148,6 @@ function HouseBuilder.build(graph)
 	end
 
 	for _, node in graph.nodes do
-		if node.kind == "hide" then
-			closet(root, ORIGIN + node.pos, node.room)
-		end
 		local marker = part(root, "Belief" .. node.id, Vector3.new(1, 1, 1), ORIGIN + node.pos + Vector3.new(0, 0.6, 0), Color3.fromRGB(255, 40, 60), Enum.Material.Neon, 1)
 		marker.Shape = Enum.PartType.Ball
 		marker.CanCollide = false
@@ -190,7 +164,7 @@ function HouseBuilder.build(graph)
 	spawn.Neutral = true
 	spawn.Duration = 0
 	spawn.Size = Vector3.new(5, 0.4, 5)
-	spawn.Position = ORIGIN + HouseGraph.roomCenter(1) + Vector3.new(0, 0.2, 0)
+	spawn.Position = ORIGIN + HouseGraph.roomCenter(HouseGraph.SPAWN_ROOM) + Vector3.new(0, 0.2, 0)
 	spawn.Color = Color3.fromRGB(70, 110, 160)
 	spawn.Parent = root
 

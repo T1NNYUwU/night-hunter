@@ -23,12 +23,12 @@ local LAST_NIGHT = 7
 local REVIVE_SECONDS = 3
 local WAKE_SECONDS = 8 -- the hunter stays asleep for the first seconds of the night
 
--- Difficulty per night for the blind hunter, tuned with Sim (2 crate-collecting bots,
--- 150 nights each): belief-hunter win rate ~95% on night 1 -> ~64% on night 7.
--- Players: crouch 6, walk 12, sprint 20 studs/s. See docs/playable-v1.md.
-local PATROL_SPEED = { 9, 10, 10, 11, 12, 12, 13 }
-local CHARGE_SPEED = { 14, 15, 16, 17, 18, 18, 19 }
-local HEARING = { 0.7, 0.75, 0.8, 0.85, 0.9, 0.95, 1.0 }
+-- Difficulty per night for the blind hunter in the 16-room house, tuned with Sim
+-- (2 crate-collecting bots, 120 nights each): belief-hunter win rate ~97% on night 1 ->
+-- ~63% on night 7. Players: crouch 6, walk 12, sprint 20 studs/s. See docs/playable-v1.md.
+local PATROL_SPEED = { 10, 11, 12, 13, 14, 15, 16 }
+local CHARGE_SPEED = { 15, 16, 17, 18, 19, 19, 20 }
+local HEARING = { 0.75, 0.8, 0.85, 0.9, 0.95, 1.0, 1.0 }
 
 local NightCycle = {}
 
@@ -64,13 +64,13 @@ function NightCycle.start(house)
 	local crates, needed = 0, 0
 	local result = ""
 	local downsThisNight = 0
-	local lair = 9
+	local lair = HouseGraph.DEFAULT_LAIR
 	local wakeAt = 0
 
 	-- Tonight's lair: any room at least 2 rooms from the spawn, never the same room twice in a row.
 	local lairOptions = {}
 	for room = 1, graph.roomCount do
-		if graph.dist[1][room] >= 2 then
+		if graph.dist[HouseGraph.SPAWN_ROOM][room] >= 2 then
 			table.insert(lairOptions, room)
 		end
 	end

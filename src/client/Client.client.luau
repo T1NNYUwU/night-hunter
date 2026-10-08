@@ -11,7 +11,10 @@ local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
 local Workspace = game:GetService("Workspace")
 
+local SoundService = game:GetService("SoundService")
+
 local player = Players.LocalPlayer
+local Sounds = require(ReplicatedStorage:WaitForChild("NightHunter"):WaitForChild("Sounds"))
 local remotes = ReplicatedStorage:WaitForChild("NightHunterRemotes")
 local state = Workspace:WaitForChild("NightHunterState")
 
@@ -215,6 +218,22 @@ glow.Color = localBeam.Color
 glow.Shadows = false
 glow.Parent = beamPart
 
+---------------------------------------------------------------- sound (2D, this player only)
+
+local function localSound(id: string, volume: number, looped: boolean): Sound
+	local s = Instance.new("Sound")
+	s.SoundId = id
+	s.Volume = volume
+	s.Looped = looped
+	s.Parent = SoundService
+	return s
+end
+local ambience = localSound(Sounds.ambience, 0, true)
+local heartbeat = localSound(Sounds.heartbeat, 0, true)
+local scare = localSound(Sounds.hunterGrowl, 2, false)
+ambience:Play()
+heartbeat:Play()
+
 ---------------------------------------------------------------- feedback loops
 
 local shakeUntil = 0
@@ -227,6 +246,7 @@ player:GetAttributeChangedSignal("Downed"):Connect(function()
 		flash.BackgroundTransparency = 0.05
 		TweenService:Create(flash, TweenInfo.new(1.2), { BackgroundTransparency = 1 }):Play()
 		shakeUntil = os.clock() + 0.8
+		scare:Play()
 	end
 	wasDown = down
 end)
@@ -285,6 +305,10 @@ RunService:BindToRenderStep("NightHunterView", Enum.RenderPriority.Camera.Value 
 		closeness = math.clamp((26 - d) / 20, 0, 1)
 	end
 	local pulse = 0.5 + 0.5 * math.sin(os.clock() * (4 + closeness * 8))
+	local night = state:GetAttribute("Phase") == "Night"
+	ambience.Volume += ((if night then 0.45 else 0.12) - ambience.Volume) * 0.02
+	heartbeat.Volume = closeness * 1.1
+	heartbeat.PlaybackSpeed = 1 + closeness * 0.5
 	for _, f in vignette do
 		f.BackgroundTransparency = 1 - closeness * (0.55 + 0.25 * pulse)
 	end

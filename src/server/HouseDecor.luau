@@ -1,16 +1,28 @@
 --!nonstrict
--- Furniture, wall finishes, windows and lights for the house: an abandoned family home at night.
--- Everything is built from parts (no third-party models), placed per room in room-local
--- coordinates (room centre = 0,0,0, floor top = y 0, inner wall faces at ±11.5).
--- Props hug the walls and stay out of the central "+" (room centre ↔ doors), which is
--- where players and the hunter walk, and out of each room's closet corner.
+-- Furniture, wall finishes, windows and lights for the house: an abandoned family mansion at night.
+--
+-- Real furniture comes from ServerStorage.AssetLibrary: free Creator Store models that were
+-- audited (scripts removed, see docs/assets.md) and normalised so each has a bottom-centre
+-- "Root" part and its front facing -Z. Things the library does not have (fireplace, kitchen
+-- counters, crib...) are built from parts. If the library is missing (another place), every
+-- library prop falls back to a plain box of the same size, so the house still builds.
+--
+-- Coordinates are room-local: room centre = 0,0,0, floor top = y 0, inner wall faces at ±11.5.
+-- Props hug the walls and stay out of the central "+" (room centre <-> doors), which is where
+-- players and the hunter walk, and away from the wardrobe each room has for hiding.
 
 local CollectionService = game:GetService("CollectionService")
+local ServerStorage = game:GetService("ServerStorage")
 
 local HouseGraph = require(game:GetService("ReplicatedStorage"):WaitForChild("NightHunter"):WaitForChild("HouseGraph"))
 
 local HouseDecor = {}
-HouseDecor.VERSION = 3 -- bump when decor changes, so saved houses get rebuilt
+HouseDecor.VERSION = 4 -- bump when decor changes, so saved houses get rebuilt
+
+local FACE = 11.5 -- inner wall face
+-- Library models are expected to face -Z. Measured exceptions (docs/assets.md):
+-- the wardrobe's doors and handles sit on its +Z side, so it is turned around.
+local ASSET_YAW = { Wardrobe = 180 }
 
 local WOOD_DARK = Color3.fromRGB(58, 40, 30)
 local WOOD = Color3.fromRGB(96, 66, 46)
@@ -24,20 +36,46 @@ local BRASS = Color3.fromRGB(160, 125, 60)
 local WARM_LIGHT = Color3.fromRGB(255, 196, 140)
 local MOON_LIGHT = Color3.fromRGB(150, 175, 255)
 
-HouseDecor.THEMES = {
-	[1] = { name = "Foyer", wall = Color3.fromRGB(78, 62, 58), floor = Color3.fromRGB(70, 66, 62), floorMat = Enum.Material.Marble },
-	[2] = { name = "Library", wall = Color3.fromRGB(52, 66, 56), floor = WOOD, floorMat = Enum.Material.WoodPlanks },
-	[3] = { name = "Bedroom", wall = Color3.fromRGB(86, 70, 92), floor = WOOD_LIGHT, floorMat = Enum.Material.WoodPlanks },
-	[4] = { name = "Living room", wall = Color3.fromRGB(84, 54, 50), floor = WOOD, floorMat = Enum.Material.WoodPlanks },
-	[5] = { name = "Hall", wall = Color3.fromRGB(80, 74, 60), floor = WOOD_DARK, floorMat = Enum.Material.WoodPlanks },
-	[6] = { name = "Kitchen", wall = Color3.fromRGB(118, 114, 96), floor = Color3.fromRGB(150, 150, 140), floorMat = Enum.Material.Slate },
-	[7] = { name = "Dining room", wall = Color3.fromRGB(70, 52, 70), floor = WOOD, floorMat = Enum.Material.WoodPlanks },
-	[8] = { name = "Bathroom", wall = Color3.fromRGB(86, 108, 106), floor = Color3.fromRGB(170, 175, 172), floorMat = Enum.Material.Marble },
-	[9] = { name = "Nursery", wall = Color3.fromRGB(120, 100, 82), floor = WOOD_LIGHT, floorMat = Enum.Material.WoodPlanks },
+local FALLBACK_SIZE = { -- used only when AssetLibrary is missing
+	Furniture_Bed = Vector3.new(5.8, 3.5, 9),
+	Furniture_Shelf = Vector3.new(10.9, 8.6, 3.4),
+	Furniture_Cabinet = Vector3.new(4.2, 7.6, 2.5),
+	Furniture_Table = Vector3.new(4.5, 3.3, 6.7),
+	Furniture_Chair = Vector3.new(2.9, 4.9, 3),
+	Furniture_Drawer = Vector3.new(6.6, 3.6, 3.1),
+	Wardrobe = Vector3.new(5.1, 7.4, 2.1),
+	Bathtub = Vector3.new(7, 2.6, 3.8),
+	Chandelier = Vector3.new(7.6, 8.7, 7.9),
+	Candelabra = Vector3.new(2, 3.2, 0.8),
+	Cobwebs = Vector3.new(15.2, 2.8, 15.7),
 }
 
--- Rooms whose ceiling lamp flickers (picked by hand so the house has a rhythm, not noise).
-local FLICKER_ROOMS = { [3] = true, [5] = true, [8] = true }
+-- Room themes. `noWindow` lists outer walls that get no window (a door, a fireplace, a shelf).
+HouseDecor.THEMES = {
+	[1] = { name = "Foyer", wall = Color3.fromRGB(78, 62, 58), floor = Color3.fromRGB(70, 66, 62), floorMat = Enum.Material.Marble, noWindow = { W = true } },
+	[2] = { name = "Grand Hall", wall = Color3.fromRGB(70, 58, 50), floor = WOOD_DARK, floorMat = Enum.Material.WoodPlanks },
+	[3] = { name = "Library", wall = Color3.fromRGB(52, 66, 56), floor = WOOD, floorMat = Enum.Material.WoodPlanks },
+	[4] = { name = "Study", wall = Color3.fromRGB(74, 56, 46), floor = WOOD, floorMat = Enum.Material.WoodPlanks, noWindow = { N = true } },
+	[5] = { name = "Storeroom", wall = Color3.fromRGB(86, 80, 70), floor = Color3.fromRGB(80, 74, 66), floorMat = Enum.Material.Concrete },
+	[6] = { name = "Living Room", wall = Color3.fromRGB(84, 54, 50), floor = WOOD, floorMat = Enum.Material.WoodPlanks },
+	[7] = { name = "Gallery", wall = Color3.fromRGB(60, 52, 72), floor = WOOD_DARK, floorMat = Enum.Material.WoodPlanks },
+	[8] = { name = "Bedroom", wall = Color3.fromRGB(86, 70, 92), floor = WOOD_LIGHT, floorMat = Enum.Material.WoodPlanks },
+	[9] = { name = "Kitchen", wall = Color3.fromRGB(118, 114, 96), floor = Color3.fromRGB(150, 150, 140), floorMat = Enum.Material.Slate },
+	[10] = { name = "Dining Room", wall = Color3.fromRGB(70, 52, 70), floor = WOOD, floorMat = Enum.Material.WoodPlanks },
+	[11] = { name = "Hallway", wall = Color3.fromRGB(80, 74, 60), floor = WOOD_DARK, floorMat = Enum.Material.WoodPlanks },
+	[12] = { name = "Master Bedroom", wall = Color3.fromRGB(64, 50, 72), floor = WOOD_LIGHT, floorMat = Enum.Material.WoodPlanks },
+	[13] = { name = "Pantry", wall = Color3.fromRGB(96, 88, 72), floor = Color3.fromRGB(90, 84, 74), floorMat = Enum.Material.Slate, noWindow = { S = true, W = true } },
+	[14] = { name = "Servants' Room", wall = Color3.fromRGB(90, 80, 66), floor = WOOD, floorMat = Enum.Material.WoodPlanks },
+	[15] = { name = "Nursery", wall = Color3.fromRGB(120, 100, 82), floor = WOOD_LIGHT, floorMat = Enum.Material.WoodPlanks },
+	[16] = { name = "Bathroom", wall = Color3.fromRGB(86, 108, 106), floor = Color3.fromRGB(170, 175, 172), floorMat = Enum.Material.Marble },
+}
+
+-- Rooms whose light flickers (picked by hand so the house has a rhythm, not noise).
+local FLICKER_ROOMS = { [5] = true, [7] = true, [11] = true, [14] = true, [16] = true }
+-- Rooms lit by a chandelier instead of a pendant lamp.
+local CHANDELIER_ROOMS = { [1] = true, [2] = true, [10] = true }
+
+---------------------------------------------------------------- primitives
 
 local function box(parent, name, size, cf, color, material, collide)
 	local p = Instance.new("Part")
@@ -74,38 +112,54 @@ local function light(parent, color, range, brightness, flicker)
 	return l
 end
 
----------------------------------------------------------------- reusable furniture
+-- Yaw that turns a -Z-facing model so its front faces into the room from wall `side`.
+local WALL_YAW = { N = 180, S = 0, W = -90, E = 90 }
+
+local function library(): Folder?
+	return ServerStorage:FindFirstChild("AssetLibrary")
+end
+
+local function sizeOf(name: string): Vector3
+	local lib = library()
+	local template = lib and lib:FindFirstChild(name)
+	return (template and template:GetAttribute("Size")) or FALLBACK_SIZE[name] or Vector3.new(2, 2, 2)
+end
+
+-- Place a library prop with its bottom centre at room-local (x, y, z), turned by `yaw` degrees.
+-- `scale` (optional) is uniform. Falls back to a box if the library does not have it.
+local function prop(m, at, name: string, x: number, y: number, z: number, yaw: number, scale: number?)
+	local lib = library()
+	local template = lib and lib:FindFirstChild(name)
+	local k = scale or 1
+	if template then
+		local c = template:Clone()
+		if k ~= 1 then
+			c:ScaleTo(c:GetScale() * k)
+		end
+		c:PivotTo(at(x, y, z, yaw + (ASSET_YAW[name] or 0)))
+		c.Parent = m
+		return c
+	end
+	local size = sizeOf(name) * k
+	return box(m, name .. "Placeholder", size, at(x, y + size.Y / 2, z, yaw), WOOD, Enum.Material.Wood)
+end
+
+-- Stand a library prop against a wall: `along` is its position along that wall.
+local function againstWall(m, at, name: string, side: string, along: number, scale: number?)
+	local depth = sizeOf(name).Z * (scale or 1)
+	local d = FACE - depth / 2 - 0.05
+	local x = if side == "W" then -d elseif side == "E" then d else along
+	local z = if side == "N" then -d elseif side == "S" then d else along
+	return prop(m, at, name, x, 0, z, WALL_YAW[side], scale)
+end
+
+---------------------------------------------------------------- part-built furniture
 
 local function table4(m, at, x, z, w, d, h, color)
 	box(m, "Top", Vector3.new(w, 0.3, d), at(x, h, z), color, Enum.Material.Wood)
 	for _, sx in { -1, 1 } do
 		for _, sz in { -1, 1 } do
 			box(m, "Leg", Vector3.new(0.3, h, 0.3), at(x + sx * (w / 2 - 0.3), h / 2, z + sz * (d / 2 - 0.3)), color, Enum.Material.Wood)
-		end
-	end
-end
-
-local function chair(m, at, x, z, yaw, color)
-	box(m, "Seat", Vector3.new(1.6, 0.25, 1.6), at(x, 1.6, z, yaw), color, Enum.Material.Wood)
-	box(m, "Back", Vector3.new(1.6, 2, 0.25), at(x, 2.7, z, yaw) * CFrame.new(0, 0, 0.7), color, Enum.Material.Wood)
-	for _, sx in { -0.65, 0.65 } do
-		for _, sz in { -0.65, 0.65 } do
-			box(m, "Leg", Vector3.new(0.2, 1.6, 0.2), at(x, 0.8, z, yaw) * CFrame.new(sx, 0, sz), color, Enum.Material.Wood)
-		end
-	end
-end
-
-local function bookshelf(m, at, x, z, yaw, width)
-	box(m, "Frame", Vector3.new(width, 9, 1.4), at(x, 4.5, z, yaw), WOOD_DARK, Enum.Material.Wood)
-	local rng = Random.new(math.floor(x * 31 + z * 17))
-	local books = { CLOTH_RED, CLOTH_GREEN, CLOTH_BLUE, BRASS, DIRTY_WHITE, WOOD_LIGHT }
-	for shelf = 0, 3 do
-		local cursor = -width / 2 + 0.4
-		while cursor < width / 2 - 0.6 do
-			local bw = rng:NextNumber(0.25, 0.5)
-			local bh = rng:NextNumber(1.2, 1.8)
-			box(m, "Book", Vector3.new(bw, bh, 1), at(x, 0, z, yaw) * CFrame.new(cursor + bw / 2, 0.8 + shelf * 2.1 + bh / 2, -0.3), books[rng:NextInteger(1, #books)], Enum.Material.Fabric, false)
-			cursor += bw + rng:NextNumber(0.02, 0.15)
 		end
 	end
 end
@@ -120,6 +174,15 @@ local function painting(m, at, x, y, z, yaw, w, h, color)
 	box(m, "Canvas", Vector3.new(w - 0.5, h - 0.5, 0.22), at(x, y, z, yaw), color, Enum.Material.SmoothPlastic, false)
 end
 
+-- A painting hung on wall `side` at position `along`.
+local function paintingOn(m, at, side, along, w, h, color)
+	local d = FACE - 0.25
+	local x = if side == "W" then -d elseif side == "E" then d else along
+	local z = if side == "N" then -d elseif side == "S" then d else along
+	local yaw = if side == "N" or side == "S" then 0 else 90
+	painting(m, at, x, 6.5, z, yaw, w, h, color)
+end
+
 local function candle(m, at, x, y, z, withLight)
 	box(m, "Candle", Vector3.new(0.3, 0.8, 0.3), at(x, y + 0.4, z), DIRTY_WHITE, Enum.Material.SmoothPlastic, false)
 	local flame = box(m, "Flame", Vector3.new(0.15, 0.3, 0.15), at(x, y + 0.95, z), Color3.fromRGB(255, 170, 70), Enum.Material.Neon, false)
@@ -128,146 +191,231 @@ local function candle(m, at, x, y, z, withLight)
 	end
 end
 
----------------------------------------------------------------- per-room furniture
+-- A candelabra (library) with a warm flickering light on top.
+local function candelabra(m, at, x, y, z, yaw)
+	local c = prop(m, at, "Candelabra", x, y, z, yaw)
+	local glow = box(m, "CandleGlow", Vector3.new(0.2, 0.2, 0.2), at(x, y + sizeOf("Candelabra").Y + 0.3, z), WARM_LIGHT, Enum.Material.Neon, false)
+	glow.Transparency = 1
+	light(glow, WARM_LIGHT, 12, 0.9, true)
+	return c
+end
+
+local function boxes(m, at, x, z, seed)
+	local rng = Random.new(seed)
+	for i = 1, 5 do
+		local s = rng:NextNumber(1.6, 3)
+		box(m, "Box", Vector3.new(s, s * 0.8, s), at(x + rng:NextNumber(-0.8, 0.8), s * 0.4 + (if i > 3 then 1.6 else 0), z + (i % 3) * 1.4, rng:NextNumber(-20, 20)), Color3.fromRGB(150, 120, 80), Enum.Material.Cardboard)
+	end
+end
+
+local function fireplace(m, at, side)
+	local x = if side == "E" then 10.8 elseif side == "W" then -10.8 else 0
+	local z = if side == "S" then 10.8 elseif side == "N" then -10.8 else 0
+	local alongX = side == "N" or side == "S"
+	local inward = if side == "E" then -1 elseif side == "W" then 1 elseif side == "S" then -1 else 1
+	local function o(a, b) -- (inward offset, along offset) -> x, z
+		return if alongX then x + b else x + a * inward, if alongX then z + a * inward else z + b
+	end
+	local fx, fz = o(0, 0)
+	box(m, "Fireplace", if alongX then Vector3.new(7, 7, 1.6) else Vector3.new(1.6, 7, 7), at(fx, 3.5, fz), Color3.fromRGB(110, 100, 96), Enum.Material.Brick)
+	local hx, hz = o(0.75, 0)
+	box(m, "FireHole", if alongX then Vector3.new(3.6, 2.6, 0.4) else Vector3.new(0.4, 2.6, 3.6), at(hx, 1.4, hz), Color3.fromRGB(20, 16, 14), Enum.Material.SmoothPlastic, false)
+	local ex, ez = o(0.9, 0)
+	local embers = box(m, "Embers", if alongX then Vector3.new(3, 0.5, 0.6) else Vector3.new(0.6, 0.5, 3), at(ex, 0.4, ez), Color3.fromRGB(255, 90, 30), Enum.Material.Neon, false)
+	light(embers, Color3.fromRGB(255, 120, 60), 16, 1.2, true)
+	local mx, mz = o(0.5, 0)
+	box(m, "Mantel", if alongX then Vector3.new(8, 0.4, 2.4) else Vector3.new(2.4, 0.4, 8), at(mx, 7.1, mz), WOOD_DARK, Enum.Material.Wood)
+end
+
+local function clock(m, at, x, z, yaw)
+	box(m, "ClockBody", Vector3.new(2, 8, 1.6), at(x, 4, z, yaw), WOOD_DARK, Enum.Material.Wood)
+	box(m, "ClockFace", Vector3.new(1.5, 1.5, 0.2), at(x, 0, z, yaw) * CFrame.new(0, 6.6, -0.85), DIRTY_WHITE, Enum.Material.SmoothPlastic, false)
+	box(m, "Pendulum", Vector3.new(0.2, 2.5, 0.1), at(x, 0, z, yaw) * CFrame.new(0, 3.5, -0.85), BRASS, Enum.Material.Metal, false)
+end
+
+local function armchair(m, at, x, z, yaw, color)
+	box(m, "ArmchairSeat", Vector3.new(2.8, 2, 2.8), at(x, 1, z, yaw), color, Enum.Material.Fabric)
+	box(m, "ArmchairBack", Vector3.new(2.8, 2.4, 0.6), at(x, 0, z, yaw) * CFrame.new(0, 2.6, 1.1), color, Enum.Material.Fabric)
+end
+
+---------------------------------------------------------------- rooms
 
 local ROOM_PROPS = {}
 
-ROOM_PROPS[1] = function(m, at) -- Foyer (spawn): doors E,S · closet NW · front door on the W wall
+ROOM_PROPS[1] = function(m, at) -- Foyer (spawn). Doors E,S · wardrobe N · front door on the W wall
 	box(m, "FrontDoor", Vector3.new(0.4, 8, 5), at(-11.3, 4, 0), WOOD_DARK, Enum.Material.Wood, false)
 	box(m, "DoorKnob", Vector3.new(0.3, 0.3, 0.3), at(-11.05, 4, 1.7), BRASS, Enum.Material.Metal, false)
 	rug(m, at, 0, 0, 9, 7, CLOTH_RED)
-	box(m, "Bench", Vector3.new(5, 1.6, 1.6), at(6, 0.8, -10.3), WOOD, Enum.Material.Wood)
-	box(m, "CoatRack", Vector3.new(0.4, 6, 0.4), at(9.8, 3, 9.8), WOOD_DARK, Enum.Material.Wood)
-	box(m, "Coat", Vector3.new(1.4, 2.6, 0.6), at(9.8, 4.3, 9.3), CLOTH_GREEN, Enum.Material.Fabric, false)
-	box(m, "UmbrellaStand", Vector3.new(1.2, 2, 1.2), at(-9.8, 1, 9.8), METAL, Enum.Material.Metal)
-	painting(m, at, -5, 6.5, 11.25, 0, 3, 4, Color3.fromRGB(80, 90, 70))
+	againstWall(m, at, "Furniture_Drawer", "S", -7.5)
+	candelabra(m, at, -7.5, sizeOf("Furniture_Drawer").Y, 10.2, 0)
+	paintingOn(m, at, "N", -5, 3, 4, Color3.fromRGB(80, 90, 70))
+	prop(m, at, "Cobwebs", -8.5, 10.5, -8.5, 0, 0.45)
 end
 
-ROOM_PROPS[2] = function(m, at) -- Library: doors W,E · closet NE · solid S wall
-	bookshelf(m, at, -5.5, 10.6, 180, 8)
-	bookshelf(m, at, 5.5, 10.6, 180, 8)
-	table4(m, at, -7.5, -8.5, 4.5, 2.4, 2.8, WOOD_DARK)
-	chair(m, at, -7.5, -6.6, 0, WOOD)
-	local lamp = box(m, "DeskLamp", Vector3.new(0.5, 0.6, 0.5), at(-6, 3.25, -9), Color3.fromRGB(255, 170, 90), Enum.Material.Neon, false)
-	light(lamp, WARM_LIGHT, 12, 0.7, false)
-	box(m, "BookPile", Vector3.new(1.2, 1, 0.9), at(-8.6, 3.45, -8.8), CLOTH_RED, Enum.Material.Fabric, false)
-	rug(m, at, 0, 0, 8, 6, CLOTH_GREEN)
+ROOM_PROPS[2] = function(m, at) -- Grand Hall. Doors W,E,S · wardrobe N (west side)
+	againstWall(m, at, "Furniture_Cabinet", "N", 6)
+	box(m, "Pedestal", Vector3.new(1.4, 3, 1.4), at(2.5, 1.5, -10.4), DIRTY_WHITE, Enum.Material.Marble)
+	candelabra(m, at, 2.5, 3, -10.4, 180)
+	paintingOn(m, at, "S", -7, 4, 5, Color3.fromRGB(90, 60, 50))
+	paintingOn(m, at, "S", 7, 4, 5, Color3.fromRGB(60, 60, 90))
+	rug(m, at, 0, 0, 18, 5, CLOTH_RED)
+	prop(m, at, "Cobwebs", 8.5, 10.5, 8.5, 90, 0.45)
 end
 
-ROOM_PROPS[3] = function(m, at) -- Bedroom: doors W,S · closet NE
-	box(m, "BedFrame", Vector3.new(5.5, 1.6, 8), at(8.2, 0.8, 6.6), WOOD_DARK, Enum.Material.Wood)
-	box(m, "Mattress", Vector3.new(5, 0.9, 7.4), at(8.2, 2, 6.8), DIRTY_WHITE, Enum.Material.Fabric)
-	box(m, "Blanket", Vector3.new(5.1, 0.3, 4.5), at(8.2, 2.5, 8.2), Color3.fromRGB(96, 60, 98), Enum.Material.Fabric, false)
-	box(m, "Pillow", Vector3.new(3.2, 0.6, 1.4), at(8.2, 2.7, 3.7), DIRTY_WHITE, Enum.Material.Fabric, false)
-	box(m, "Headboard", Vector3.new(5.5, 4, 0.5), at(8.2, 2, 2.6), WOOD_DARK, Enum.Material.Wood)
-	box(m, "Dresser", Vector3.new(6, 3.6, 2), at(-6.5, 1.8, -10.4), WOOD, Enum.Material.Wood)
-	box(m, "Mirror", Vector3.new(3, 3.5, 0.2), at(-6.5, 5.6, -11.3), Color3.fromRGB(150, 170, 180), Enum.Material.Glass, false)
-	box(m, "Nightstand", Vector3.new(1.8, 2.2, 1.8), at(-9.8, 1.1, 9.8), WOOD, Enum.Material.Wood)
-	candle(m, at, -9.8, 2.2, 9.8, true)
+ROOM_PROPS[3] = function(m, at) -- Library. Doors W,E · solid S wall · wardrobe S (east side)
+	againstWall(m, at, "Furniture_Shelf", "S", -5)
+	againstWall(m, at, "Furniture_Shelf", "N", 6, 0.9)
+	prop(m, at, "Furniture_Table", -6, 0, -6, 90)
+	prop(m, at, "Furniture_Chair", -6, 0, -9.6, 180)
+	candelabra(m, at, -6, sizeOf("Furniture_Table").Y, -6, 0)
+	rug(m, at, -5.5, -5, 8, 6, CLOTH_GREEN)
 end
 
-ROOM_PROPS[4] = function(m, at) -- Living room: doors N,E,S · closet SW · fireplace on the W wall
-	box(m, "Fireplace", Vector3.new(1.6, 7, 7), at(-10.8, 3.5, -1), Color3.fromRGB(110, 100, 96), Enum.Material.Brick)
-	box(m, "FireHole", Vector3.new(0.4, 2.6, 3.6), at(-10.05, 1.4, -1), Color3.fromRGB(20, 16, 14), Enum.Material.SmoothPlastic, false)
-	local embers = box(m, "Embers", Vector3.new(0.6, 0.5, 3), at(-9.9, 0.4, -1), Color3.fromRGB(255, 90, 30), Enum.Material.Neon, false)
-	light(embers, Color3.fromRGB(255, 120, 60), 16, 1.2, true)
-	box(m, "Mantel", Vector3.new(2.4, 0.4, 8), at(-10.3, 7.1, -1), WOOD_DARK, Enum.Material.Wood)
-	box(m, "Armchair", Vector3.new(2.8, 2, 2.8), at(-5.4, 1, -5), CLOTH_RED, Enum.Material.Fabric)
-	box(m, "ArmchairBack", Vector3.new(0.6, 2.4, 2.8), at(-4.3, 2.6, -5), CLOTH_RED, Enum.Material.Fabric)
-	box(m, "Armchair", Vector3.new(2.8, 2, 2.8), at(-5.4, 1, 3.4), CLOTH_RED, Enum.Material.Fabric)
-	box(m, "ArmchairBack", Vector3.new(0.6, 2.4, 2.8), at(-4.3, 2.6, 3.4), CLOTH_RED, Enum.Material.Fabric)
-	rug(m, at, -6.5, -1, 6, 9, CLOTH_BLUE)
-	box(m, "Cabinet", Vector3.new(1.8, 4, 5), at(10.4, 2, 7.5), WOOD, Enum.Material.Wood)
-	painting(m, at, 8, 6.5, -11.25, 0, 4, 3, Color3.fromRGB(120, 90, 60))
+ROOM_PROPS[4] = function(m, at) -- Study. Doors W,S · wardrobe E
+	prop(m, at, "Furniture_Table", -6, 0, -(FACE - sizeOf("Furniture_Table").X / 2 - 0.05), 90)
+	prop(m, at, "Furniture_Chair", -6, 0, -5.9, 180)
+	candelabra(m, at, -4, sizeOf("Furniture_Table").Y, -9.6, 180)
+	againstWall(m, at, "Furniture_Shelf", "N", 6, 0.8)
+	againstWall(m, at, "Furniture_Cabinet", "W", -7)
+	paintingOn(m, at, "W", 7, 3, 4, Color3.fromRGB(70, 50, 40))
 end
 
-ROOM_PROPS[5] = function(m, at) -- Hall: doors W,E,S · solid N wall · closets NW + SE
-	box(m, "ClockBody", Vector3.new(2, 8, 1.6), at(4, 4, -10.6), WOOD_DARK, Enum.Material.Wood)
-	box(m, "ClockFace", Vector3.new(1.5, 1.5, 0.2), at(4, 6.6, -9.75), DIRTY_WHITE, Enum.Material.SmoothPlastic, false)
-	box(m, "Pendulum", Vector3.new(0.2, 2.5, 0.1), at(4, 3.5, -9.75), BRASS, Enum.Material.Metal, false)
-	painting(m, at, -1.5, 6.5, -11.25, 0, 3, 4, Color3.fromRGB(70, 60, 90))
-	painting(m, at, 8.5, 6.5, -11.25, 0, 2.5, 3, Color3.fromRGB(90, 70, 60))
-	rug(m, at, 0, 0, 16, 4.5, CLOTH_RED)
-	box(m, "Bench", Vector3.new(1.6, 1.6, 4.5), at(-10.3, 0.8, 7), WOOD, Enum.Material.Wood)
+ROOM_PROPS[5] = function(m, at) -- Storeroom. Doors N,E · solid S wall · wardrobe W
+	againstWall(m, at, "Furniture_Shelf", "S", 2)
+	boxes(m, at, 8, 4.5, 5)
+	boxes(m, at, -8, 6, 55)
+	againstWall(m, at, "Furniture_Drawer", "N", 7)
+	prop(m, at, "Cobwebs", 8, 10.5, 8, 0, 0.5)
+	prop(m, at, "Cobwebs", -8, 10.5, -8, 180, 0.45)
 end
 
-ROOM_PROPS[6] = function(m, at) -- Kitchen: doors N,W,S · closet SE · window on the E wall
-	box(m, "CounterE", Vector3.new(2.4, 3.2, 7), at(10.3, 1.6, -7.5), DIRTY_WHITE, Enum.Material.SmoothPlastic)
-	box(m, "CounterN", Vector3.new(5.5, 3.2, 2.4), at(8.2, 1.6, -10.3), DIRTY_WHITE, Enum.Material.SmoothPlastic)
-	box(m, "CounterTop", Vector3.new(2.6, 0.3, 7.2), at(10.3, 3.3, -7.5), Color3.fromRGB(60, 60, 64), Enum.Material.Granite, false)
-	box(m, "Sink", Vector3.new(1.6, 0.2, 2.2), at(10.3, 3.46, -6), METAL, Enum.Material.Metal, false)
-	box(m, "Fridge", Vector3.new(3, 7, 2.6), at(-9.8, 3.5, -10), Color3.fromRGB(200, 205, 200), Enum.Material.SmoothPlastic)
-	box(m, "Stove", Vector3.new(2.4, 3.2, 2.4), at(4.2, 1.6, -10.3), METAL, Enum.Material.Metal)
-	table4(m, at, -7, 7, 4, 3, 2.8, WOOD_LIGHT)
-	chair(m, at, -7, 4.6, 180, WOOD)
-	chair(m, at, -4.4, 7, 90, WOOD)
-	box(m, "Plate", Vector3.new(0.9, 0.08, 0.9), at(-7.5, 2.99, 6.6), DIRTY_WHITE, Enum.Material.SmoothPlastic, false)
+ROOM_PROPS[6] = function(m, at) -- Living room. Doors W,N,S · solid E wall (fireplace) · wardrobe N
+	fireplace(m, at, "E")
+	armchair(m, at, 5.4, -5, -90, CLOTH_RED)
+	armchair(m, at, 5.4, 5, -90, CLOTH_RED)
+	rug(m, at, 6, 0, 6, 10, CLOTH_BLUE)
+	againstWall(m, at, "Furniture_Drawer", "S", -7.5)
+	paintingOn(m, at, "W", -7, 4, 3, Color3.fromRGB(120, 90, 60))
 end
 
-ROOM_PROPS[7] = function(m, at) -- Dining room: doors N,E · closet SW
-	table4(m, at, 7, 7, 4, 7, 3, WOOD_DARK)
-	box(m, "TableCloth", Vector3.new(4.3, 0.05, 7.3), at(7, 3.2, 7), Color3.fromRGB(150, 140, 125), Enum.Material.Fabric, false)
-	chair(m, at, 4.5, 5, -90, WOOD)
-	chair(m, at, 4.5, 9, -90, WOOD)
-	chair(m, at, 9.5, 5, 90, WOOD)
-	candle(m, at, 7, 3.2, 6, true)
-	candle(m, at, 7, 3.2, 8, false)
-	box(m, "Hutch", Vector3.new(1.8, 8, 6), at(-10.4, 4, -6.5), WOOD, Enum.Material.Wood)
-	box(m, "HutchGlass", Vector3.new(0.2, 3.5, 5), at(-9.45, 5.8, -6.5), Color3.fromRGB(140, 160, 170), Enum.Material.Glass, false)
+ROOM_PROPS[7] = function(m, at) -- Gallery. Doors E,S · solid N and W walls · wardrobe W (south side)
+	paintingOn(m, at, "N", -6, 4, 5, Color3.fromRGB(70, 40, 40))
+	paintingOn(m, at, "N", 1, 3, 4, Color3.fromRGB(40, 50, 70))
+	paintingOn(m, at, "N", 7.5, 3.5, 5, Color3.fromRGB(80, 70, 40))
+	paintingOn(m, at, "W", -6, 4, 5, Color3.fromRGB(60, 30, 60))
+	for _, z in { -7, 7 } do
+		box(m, "Pedestal", Vector3.new(1.4, 3, 1.4), at(-5, 1.5, z), DIRTY_WHITE, Enum.Material.Marble)
+		candelabra(m, at, -5, 3, z, 0)
+	end
+	rug(m, at, 0, 0, 6, 16, CLOTH_RED)
 end
 
-ROOM_PROPS[8] = function(m, at) -- Bathroom: doors W,N,E · closet SE
-	box(m, "Tub", Vector3.new(7, 2.4, 3.4), at(-6.5, 1.2, 9.6), DIRTY_WHITE, Enum.Material.SmoothPlastic)
-	box(m, "TubWater", Vector3.new(6.2, 0.2, 2.6), at(-6.5, 2.2, 9.6), Color3.fromRGB(90, 110, 100), Enum.Material.Glass, false)
-	box(m, "Vanity", Vector3.new(4, 3.2, 2), at(7, 1.6, -10.4), DIRTY_WHITE, Enum.Material.SmoothPlastic)
-	box(m, "Basin", Vector3.new(2, 0.3, 1.4), at(7, 3.35, -10.2), Color3.fromRGB(220, 220, 215), Enum.Material.SmoothPlastic, false)
-	box(m, "Mirror", Vector3.new(3, 3.5, 0.2), at(7, 6, -11.35), Color3.fromRGB(150, 170, 180), Enum.Material.Glass, false)
-	box(m, "Toilet", Vector3.new(1.8, 1.8, 2.4), at(-9.8, 0.9, -9.6), DIRTY_WHITE, Enum.Material.SmoothPlastic)
-	box(m, "ToiletTank", Vector3.new(1.8, 1.6, 0.8), at(-9.8, 2.6, -10.8), DIRTY_WHITE, Enum.Material.SmoothPlastic)
+ROOM_PROPS[8] = function(m, at) -- Bedroom. Doors W,N,S · outer E · wardrobe E (north side)
+	againstWall(m, at, "Furniture_Bed", "S", 6.5)
+	againstWall(m, at, "Furniture_Drawer", "N", -7)
+	prop(m, at, "Furniture_Chair", -8.5, 0, 6, 90)
+	candle(m, at, -7, sizeOf("Furniture_Drawer").Y, -10.3, true)
+	paintingOn(m, at, "W", -7, 3, 3, Color3.fromRGB(90, 70, 80))
 end
 
-ROOM_PROPS[9] = function(m, at) -- Nursery: doors W,N · closet SE
-	box(m, "CribBase", Vector3.new(4.2, 1.2, 2.6), at(7.5, 1.8, -10), WOOD_LIGHT, Enum.Material.Wood)
+ROOM_PROPS[9] = function(m, at) -- Kitchen. Doors E,S · solid N wall · outer W · wardrobe W (south side)
+	box(m, "CounterN", Vector3.new(14, 3.2, 2.4), at(1, 1.6, -10.3), DIRTY_WHITE, Enum.Material.SmoothPlastic)
+	box(m, "CounterTop", Vector3.new(14.2, 0.3, 2.6), at(1, 3.3, -10.3), Color3.fromRGB(60, 60, 64), Enum.Material.Granite, false)
+	box(m, "Sink", Vector3.new(2.2, 0.2, 1.6), at(3, 3.46, -10.2), METAL, Enum.Material.Metal, false)
+	box(m, "Stove", Vector3.new(2.6, 3.2, 2.4), at(-8, 1.6, -10.3), METAL, Enum.Material.Metal)
+	box(m, "Fridge", Vector3.new(3, 7, 2.6), at(10, 3.5, -10), Color3.fromRGB(200, 205, 200), Enum.Material.SmoothPlastic)
+	prop(m, at, "Furniture_Table", 7, 0, 6, 0)
+	prop(m, at, "Furniture_Chair", 4, 0, 6, -90)
+	prop(m, at, "Furniture_Chair", 10, 0, 6, 90)
+end
+
+ROOM_PROPS[10] = function(m, at) -- Dining room. Doors W,E,N,S · wardrobe S (east side)
+	prop(m, at, "Furniture_Table", -6.5, 0, -6.5, 0)
+	prop(m, at, "Furniture_Chair", -9.5, 0, -6.5, -90)
+	prop(m, at, "Furniture_Chair", -3.5, 0, -6.5, 90)
+	prop(m, at, "Furniture_Chair", -6.5, 0, -10.3, 180)
+	candelabra(m, at, -6.5, sizeOf("Furniture_Table").Y, -6.5, 0)
+	againstWall(m, at, "Furniture_Cabinet", "E", -7)
+	paintingOn(m, at, "W", 7, 3, 3, Color3.fromRGB(70, 60, 50))
+end
+
+ROOM_PROPS[11] = function(m, at) -- Hallway. Doors W,E,N,S · wardrobe E (south side)
+	clock(m, at, -9.5, -10.2, 0)
+	paintingOn(m, at, "N", 7, 3, 4, Color3.fromRGB(80, 60, 50))
+	paintingOn(m, at, "W", 7, 3, 4, Color3.fromRGB(50, 60, 80))
+	rug(m, at, 0, 0, 20, 4, CLOTH_RED)
+	rug(m, at, 0, 0, 4, 20, CLOTH_RED)
+	prop(m, at, "Cobwebs", -8.5, 10.5, 8.5, 270, 0.45)
+end
+
+ROOM_PROPS[12] = function(m, at) -- Master bedroom. Doors W,N,S · outer E · wardrobe E (north side)
+	againstWall(m, at, "Furniture_Bed", "S", 6.5, 1.1)
+	againstWall(m, at, "Furniture_Drawer", "N", -7)
+	againstWall(m, at, "Furniture_Cabinet", "W", 7)
+	box(m, "Mirror", Vector3.new(3, 3.5, 0.2), at(-7, 6, -11.35), Color3.fromRGB(150, 170, 180), Enum.Material.Glass, false)
+	candelabra(m, at, -9, sizeOf("Furniture_Drawer").Y, -10.3, 180)
+	rug(m, at, 6.5, 2, 7, 6, CLOTH_BLUE)
+end
+
+ROOM_PROPS[13] = function(m, at) -- Pantry. Doors N,E · outer W,S · wardrobe S (west side)
+	againstWall(m, at, "Furniture_Shelf", "W", -5, 0.9)
+	againstWall(m, at, "Furniture_Shelf", "S", 5, 0.9)
+	for i, x in { 5.5, 8, 10.2 } do
+		local barrel = box(m, "Barrel", Vector3.new(3, 2.4, 2.4), at(x, 1.5, -10) * CFrame.Angles(0, 0, math.pi / 2), WOOD, Enum.Material.Wood)
+		barrel.Shape = Enum.PartType.Cylinder
+		barrel.Name = "Barrel" .. i
+	end
+	boxes(m, at, 6, 4.5, 13)
+	prop(m, at, "Cobwebs", 8, 10.5, 8, 0, 0.5)
+end
+
+ROOM_PROPS[14] = function(m, at) -- Servants' room. Doors N,W · solid E wall · outer S · wardrobe S (east side)
+	againstWall(m, at, "Furniture_Bed", "E", -5)
+	prop(m, at, "Furniture_Chair", -8.5, 0, -8, 90)
+	table4(m, at, -6, -9.8, 3, 2, 2.6, WOOD)
+	candle(m, at, -6, 2.75, -9.8, true)
+	prop(m, at, "Cobwebs", -8.5, 10.5, 8.5, 0, 0.45)
+end
+
+ROOM_PROPS[15] = function(m, at) -- Nursery. Doors N,E · solid W wall · outer S · wardrobe S (west side)
+	box(m, "CribBase", Vector3.new(2.6, 1.2, 4.2), at(-10, 1.8, -6), WOOD_LIGHT, Enum.Material.Wood)
 	for i = 0, 8 do
-		box(m, "CribBar", Vector3.new(0.15, 2.4, 0.15), at(5.6 + i * 0.47, 3.6, -8.8), WOOD_LIGHT, Enum.Material.Wood, false)
+		box(m, "CribBar", Vector3.new(0.15, 2.4, 0.15), at(-8.8, 3.6, -7.9 + i * 0.47), WOOD_LIGHT, Enum.Material.Wood, false)
 	end
-	box(m, "HorseBody", Vector3.new(1, 1.4, 2.8), at(-7, 2.2, 7), Color3.fromRGB(180, 150, 120), Enum.Material.Wood)
-	box(m, "HorseHead", Vector3.new(0.9, 1.6, 1), at(-7, 3.4, 5.9), Color3.fromRGB(180, 150, 120), Enum.Material.Wood)
-	box(m, "Rocker", Vector3.new(0.4, 0.5, 4), at(-7, 0.6, 7), WOOD_DARK, Enum.Material.Wood)
-	local rng = Random.new(9)
-	for i = 1, 5 do
-		local s = rng:NextNumber(1.6, 3)
-		box(m, "Box", Vector3.new(s, s * 0.8, s), at(-9.6 + rng:NextNumber(-0.6, 0.6), s * 0.4 + (i > 3 and 1.6 or 0), -9.6 + (i % 3) * 1.4, rng:NextNumber(-20, 20)), Color3.fromRGB(150, 120, 80), Enum.Material.Cardboard)
-	end
+	box(m, "HorseBody", Vector3.new(1, 1.4, 2.8), at(6, 2.2, -6), Color3.fromRGB(180, 150, 120), Enum.Material.Wood)
+	box(m, "HorseHead", Vector3.new(0.9, 1.6, 1), at(6, 3.4, -7.1), Color3.fromRGB(180, 150, 120), Enum.Material.Wood)
+	box(m, "Rocker", Vector3.new(0.4, 0.5, 4), at(6, 0.6, -6), WOOD_DARK, Enum.Material.Wood)
 	for i = 1, 4 do
-		box(m, "Block", Vector3.new(0.8, 0.8, 0.8), at(-3 + i * 0.9, 0.4, 9.5 - (i % 2)), ({ CLOTH_RED, CLOTH_BLUE, BRASS, CLOTH_GREEN })[i], Enum.Material.SmoothPlastic)
+		box(m, "Block", Vector3.new(0.8, 0.8, 0.8), at(3 + i * 0.9, 0.4, 7.5 - (i % 2)), ({ CLOTH_RED, CLOTH_BLUE, BRASS, CLOTH_GREEN })[i], Enum.Material.SmoothPlastic)
 	end
+	againstWall(m, at, "Furniture_Drawer", "W", 4.5)
+end
+
+ROOM_PROPS[16] = function(m, at) -- Bathroom. Doors W,N · outer E,S · wardrobe E (north side)
+	againstWall(m, at, "Bathtub", "S", -6.5)
+	box(m, "Vanity", Vector3.new(4, 3.2, 2), at(-7, 1.6, -10.4), DIRTY_WHITE, Enum.Material.SmoothPlastic)
+	box(m, "Basin", Vector3.new(2, 0.3, 1.4), at(-7, 3.35, -10.2), Color3.fromRGB(220, 220, 215), Enum.Material.SmoothPlastic, false)
+	box(m, "Mirror", Vector3.new(3, 3.5, 0.2), at(-7, 6, -11.35), Color3.fromRGB(150, 170, 180), Enum.Material.Glass, false)
+	box(m, "Toilet", Vector3.new(1.8, 1.8, 2.4), at(9.8, 0.9, 9.6), DIRTY_WHITE, Enum.Material.SmoothPlastic)
+	box(m, "ToiletTank", Vector3.new(1.8, 1.6, 0.8), at(9.8, 2.6, 10.8), DIRTY_WHITE, Enum.Material.SmoothPlastic)
 end
 
 ---------------------------------------------------------------- shared finishes
 
-local function hasDoor(graph, a, b)
-	for _, door in graph.doors do
-		if (door[1] == a and door[2] == b) or (door[1] == b and door[2] == a) then
-			return true
-		end
-	end
-	return false
-end
-
 -- Which wall sides of a room have a door, and which are outer walls.
 local function sides(graph, room)
+	local cols, rows = HouseGraph.COLS, HouseGraph.ROWS
 	local index = room - 1
-	local col, row = index % 3, index // 3
+	local col, row = index % cols, index // cols
 	return {
-		N = { door = row > 0 and hasDoor(graph, room, room - 3), outer = row == 0, axisX = true, sign = -1 },
-		S = { door = row < 2 and hasDoor(graph, room, room + 3), outer = row == 2, axisX = true, sign = 1 },
-		W = { door = col > 0 and hasDoor(graph, room, room - 1), outer = col == 0, axisX = false, sign = -1 },
-		E = { door = col < 2 and hasDoor(graph, room, room + 1), outer = col == 2, axisX = false, sign = 1 },
+		N = { name = "N", door = row > 0 and HouseGraph.hasDoor(graph, room, room - cols), outer = row == 0, axisX = true, sign = -1 },
+		S = { name = "S", door = row < rows - 1 and HouseGraph.hasDoor(graph, room, room + cols), outer = row == rows - 1, axisX = true, sign = 1 },
+		W = { name = "W", door = col > 0 and HouseGraph.hasDoor(graph, room, room - 1), outer = col == 0, axisX = false, sign = -1 },
+		E = { name = "E", door = col < cols - 1 and HouseGraph.hasDoor(graph, room, room + 1), outer = col == cols - 1, axisX = false, sign = 1 },
 	}
 end
 
--- Wallpaper + dark wainscot + baseboard on every inner face, with a gap where a door is.
+-- Wallpaper + dark wainscot + rail on every inner face, with a gap where a door is.
 local function finishWalls(m, at, theme, side)
 	local face = 11.45
 	local function strip(name, y, height, depth, color, material)
@@ -306,36 +454,65 @@ local function windowOn(m, at, side)
 	glass.CFrame = CFrame.lookAt(glass.Position, glass.Position - (if side.axisX then Vector3.new(0, 0, side.sign) else Vector3.new(side.sign, 0, 0)))
 end
 
+local function ceilingLight(m, at, room)
+	if CHANDELIER_ROOMS[room] then
+		local h = sizeOf("Chandelier").Y * 0.6
+		prop(m, at, "Chandelier", 0, 12 - h, 0, 0, 0.6)
+		local glow = box(m, "ChandelierGlow", Vector3.new(0.2, 0.2, 0.2), at(0, 12 - h * 0.5, 0), WARM_LIGHT, Enum.Material.Neon, false)
+		glow.Transparency = 1
+		light(glow, WARM_LIGHT, 22, 0.9, FLICKER_ROOMS[room])
+		return
+	end
+	box(m, "LampCord", Vector3.new(0.1, 1.6, 0.1), at(0, 11.2, 0), Color3.fromRGB(20, 20, 20), Enum.Material.SmoothPlastic, false)
+	local shade = box(m, "LampShade", Vector3.new(1, 2.4, 2.4), at(0, 10.1, 0) * CFrame.Angles(0, 0, math.pi / 2), Color3.fromRGB(70, 52, 36), Enum.Material.Fabric, false)
+	shade.Shape = Enum.PartType.Cylinder
+	local bulb = box(m, "Bulb", Vector3.new(0.6, 0.6, 0.6), at(0, 9.45, 0), Color3.fromRGB(255, 170, 90), Enum.Material.Neon, false)
+	bulb.Shape = Enum.PartType.Ball
+	light(bulb, WARM_LIGHT, 18, 0.7, FLICKER_ROOMS[room])
+end
+
+-- Hiding wardrobes: one per hide node, opening into the room, walk-through (no collision).
+local function wardrobes(decor, graph, origin)
+	for _, node in graph.nodes do
+		if node.kind == "hide" then
+			local at = placer(origin + HouseGraph.roomCenter(node.room))
+			local rel = node.pos - HouseGraph.roomCenter(node.room)
+			local depth = sizeOf("Wardrobe").Z * 1.3
+			local side = node.wall or "N"
+			local x = if side == "W" then -(FACE - depth / 2) elseif side == "E" then FACE - depth / 2 else rel.X
+			local z = if side == "N" then -(FACE - depth / 2) elseif side == "S" then FACE - depth / 2 else rel.Z
+			local w = prop(decor, at, "Wardrobe", x, 0, z, WALL_YAW[side], 1.3)
+			w.Name = "HideWardrobe" .. node.id
+			for _, d in w:GetDescendants() do
+				if d:IsA("BasePart") then
+					d.CanCollide = false -- players step inside to hide
+				end
+			end
+		end
+	end
+end
+
 function HouseDecor.decorate(root: Instance, graph, origin: Vector3)
 	local decor = Instance.new("Folder")
 	decor.Name = "Decor"
 	for room = 1, graph.roomCount do
 		local theme = HouseDecor.THEMES[room]
-		local roomOrigin = origin + HouseGraph.roomCenter(room)
-		local at = placer(roomOrigin)
+		local at = placer(origin + HouseGraph.roomCenter(room))
 		local m = Instance.new("Model")
 		m.Name = theme.name
-		for _, side in sides(graph, room) do
-			finishWalls(m, at, theme, side)
-		end
 		local s = sides(graph, room)
 		for _, key in { "N", "S", "E", "W" } do
-			if s[key].outer and not (room == 1 and key == "W") and not (room == 4 and key == "W") then
-				windowOn(m, at, s[key]) -- the foyer's W wall has the front door, the living room's the fireplace
+			finishWalls(m, at, theme, s[key])
+			if s[key].outer and not (theme.noWindow and theme.noWindow[key]) then
+				windowOn(m, at, s[key])
 			end
 		end
 		box(m, "Ceiling", Vector3.new(24, 1, 24), at(0, 12.5, 0), Color3.fromRGB(60, 56, 54), Enum.Material.Plaster)
-		box(m, "LampCord", Vector3.new(0.1, 1.6, 0.1), at(0, 11.2, 0), Color3.fromRGB(20, 20, 20), Enum.Material.SmoothPlastic, false)
-		local shade = box(m, "LampShade", Vector3.new(2.2, 1, 2.2), at(0, 10.1, 0), Color3.fromRGB(70, 52, 36), Enum.Material.Fabric, false)
-		shade.Shape = Enum.PartType.Cylinder
-		shade.CFrame = at(0, 10.1, 0) * CFrame.Angles(0, 0, math.pi / 2)
-		shade.Size = Vector3.new(1, 2.4, 2.4)
-		local bulb = box(m, "Bulb", Vector3.new(0.6, 0.6, 0.6), at(0, 9.45, 0), Color3.fromRGB(255, 170, 90), Enum.Material.Neon, false)
-		bulb.Shape = Enum.PartType.Ball
-		light(bulb, WARM_LIGHT, 18, 0.7, FLICKER_ROOMS[room])
+		ceilingLight(m, at, room)
 		ROOM_PROPS[room](m, at)
 		m.Parent = decor
 	end
+	wardrobes(decor, graph, origin)
 	decor.Parent = root
 end
 

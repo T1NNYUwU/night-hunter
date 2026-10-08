@@ -11,7 +11,8 @@
 ## ตอนนี้อยู่ตรงไหน
 - เสร็จ: สปายก์ particle filter, ตัวจำลอง + บอท 4 นิสัย, วงจรคืน (กลางวัน/กลางคืน/รายงาน), เก็บลัง, ล้ม/ช่วยฟื้น, รังสุ่ม, เส้นความยาก 7 คืน, บ้าน 9 ห้องตกแต่งด้วย part
 - เสร็จ (2026-10-08): **Playable v1 / M1** ปีศาจตาบอดฟังเสียง (`Acoustics.luau`), มุมมองบุรุษที่ 1, ไฟฉาย + แบต, วิ่ง/ย่อง/สตามินา (`PlayerKit.luau`), jumpscare + ขอบจอแดง ผลอยู่ใน [docs/playable-v1.md](docs/playable-v1.md)
-- กำลังจะทำ: **M2** แมพ 4×4 + asset จาก Creator Store + เสียง
+- เสร็จ (2026-10-08): **M2** บ้าน 16 ห้อง, เฟอร์นิเจอร์จาก Creator Store (ตรวจแล้ว ดู [docs/assets.md](docs/assets.md)), เสียง (`Sounds.luau`)
+- กำลังจะทำ: **M3** ร้านค้าช่วงกลางวัน, ภารกิจหลากหลาย, ฉากจบคืน 7, เมนู, DataStore
 - ยังไม่ทำ: แมพใหญ่ + asset จาก Creator Store (M2), ร้านค้า/ภารกิจ/ฉากจบ/เมนู (M3), POMCP + backend + playtest (M4)
 
 ## โครงสร้างไฟล์ (Rojo project: `default.project.json`)
@@ -21,6 +22,7 @@
 | `src/shared/ParticleFilter.luau` | 〃 | particle filter ต่อผู้เล่นหนึ่งคน |
 | `src/shared/HunterBrain.luau` | 〃 | สมอง `belief` และ `rule` (ใช้ทั้งในเกมและตัวจำลอง) |
 | `src/shared/Sim.luau` | 〃 | ตัวจำลองไม่มีภาพ + บอท + ตารางเปรียบเทียบ |
+| `src/shared/Sounds.luau` | 〃 | ไอดีเสียงทั้งหมดของเกม |
 | `src/shared/Acoustics.luau` | 〃 | โมเดลเสียง: ความดัง, การลดทอนข้ามห้อง, ความเร็วแต่ละท่า (ใช้ทั้งเกมและตัวจำลอง) |
 | `src/server/Main.server.luau` | ServerScriptService.NightHunter | จุดเริ่ม: สร้าง/ใช้บ้าน → NightCycle |
 | `src/server/NightCycle.luau` | 〃 | เฟสคืน, ลัง, ล้ม/ฟื้น, รัง, ความยากรายคืน |
@@ -46,7 +48,9 @@
 - `HouseBuilder.build()` ห้ามตั้งแสง (โหมด Edit จะมืด) แสงกลางคืนตั้งใน `ensure()` ตอนรันเท่านั้น
 - ตัวเลขความยากทั้งหมดมาจากตัวจำลอง ยังไม่ได้ยืนยันกับคนเล่นจริง
 - การช่วยฟื้นยังไม่เคยทดสอบด้วยผู้เล่นจริง 2 คน
-- โฟลเดอร์ยังไม่เป็น git repo ควร `git init` และ commit ก่อนแก้ใหญ่
+- เป็น git repo ในเครื่องแล้ว (branch `main`) **ยังไม่มี remote / ยังไม่ได้เชื่อม GitHub**
+- **asset จาก Creator Store อยู่ใน `ServerStorage.AssetLibrary` ของแมพ ไม่ได้อยู่ใน git** ถ้าเปิดในแมพอื่น บ้านจะใช้กล่องแทน (ดูวิธีสร้าง library ใหม่ใน docs/assets.md)
+- เครื่องมือ `screen_capture` ให้ภาพขาวถ้าหน้าต่าง Studio ไม่ได้แสดงอยู่ อย่าสรุปจากภาพขาว
 
 ## การตัดสินใจที่ตกลงกับผู้ใช้แล้ว
 - ไอเดียหลักหลังเทียบมาหลายรอบ: co-op 7 คืน + ปีศาจ AI (ไอเดียที่ทิ้งและเหตุผล อยู่ใน plan.md หัวข้อ 2)

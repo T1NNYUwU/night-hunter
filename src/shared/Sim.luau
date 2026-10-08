@@ -15,7 +15,7 @@ local LISTEN_TICKS = 2 -- the hunter stops to listen when it reaches a room
 local SEARCH_TICKS = 2 -- ...and takes a second to open a closet
 local CATCH_BUMP = 0.3 -- walked into a room with someone in it (blind, so it may miss)
 local CATCH_CHARGE = 0.8 -- rushed at a sound made in this very room
-local SPAWN_ROOM, HUNTER_START = 1, 9
+local SPAWN_ROOM, HUNTER_START = HouseGraph.SPAWN_ROOM, HouseGraph.DEFAULT_LAIR
 
 local Sim = {}
 

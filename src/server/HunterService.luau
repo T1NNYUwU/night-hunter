@@ -21,6 +21,7 @@ local Shared = ReplicatedStorage:WaitForChild("NightHunter")
 local Acoustics = require(Shared:WaitForChild("Acoustics"))
 local HouseGraph = require(Shared:WaitForChild("HouseGraph"))
 local HunterBrain = require(Shared:WaitForChild("HunterBrain"))
+local Sounds = require(Shared:WaitForChild("Sounds"))
 
 local TICK = 0.5
 local LISTEN_SECONDS = 1.0 -- pause in each room it reaches while searching
@@ -29,7 +30,7 @@ local CHARGE_MEMORY = 2.5 -- keeps rushing at the last precise sound this long
 local CATCH_RADIUS = 3.5
 local CLOSET_RADIUS = 2.6
 local DECOY_COOLDOWN = 4
-local SPAWN_ROOM, HUNTER_START = 1, 9
+local SPAWN_ROOM, HUNTER_START = HouseGraph.SPAWN_ROOM, HouseGraph.DEFAULT_LAIR
 
 local HunterService = {}
 
@@ -79,6 +80,24 @@ local function buildHunterModel(parent)
 	piece("Head", Vector3.new(1.5, 1.9, 1.4), Vector3.new(0, 8.5, 0), skin, Enum.Material.SmoothPlastic)
 	piece("Mouth", Vector3.new(0.9, 0.12, 0.1), Vector3.new(0, 8.1, -0.72), Color3.fromRGB(40, 0, 0), Enum.Material.SmoothPlastic)
 	model.PrimaryPart = body
+
+	-- 3D sounds on the body: players hear it coming before they see it.
+	local steps = Instance.new("Sound")
+	steps.Name = "Steps"
+	steps.SoundId = Sounds.hunterSteps
+	steps.Looped = true
+	steps.Volume = 1.2
+	steps.RollOffMinDistance = 8
+	steps.RollOffMaxDistance = 70
+	steps.Parent = body
+	local growl = Instance.new("Sound")
+	growl.Name = "Growl"
+	growl.SoundId = Sounds.hunterGrowl
+	growl.Volume = 1.5
+	growl.RollOffMinDistance = 10
+	growl.RollOffMaxDistance = 90
+	growl.Parent = body
+
 	model.Parent = parent
 	return model
 end
@@ -110,6 +129,9 @@ function HunterService.start(house, hooks)
 	local lastDecoy = {}
 
 	local model = buildHunterModel(house.root)
+	local stepsSound = model.Body.Steps
+	local growlSound = model.Body.Growl
+	local lastGrowl = 0
 	local hunter = {
 		node = HUNTER_START,
 		pos = Vector3.zero,
@@ -138,6 +160,9 @@ function HunterService.start(house, hooks)
 		hunter.dwell = 0
 		hunter.mode = "asleep"
 		hunter.waypoint = nil
+		if model and model:FindFirstChild("Body") then
+			model.Body.Steps:Stop()
+		end
 		model:PivotTo(CFrame.lookAt(hunter.pos, hunter.pos + hunter.facing))
 	end
 	placeAtStart()
@@ -337,6 +362,22 @@ function HunterService.start(house, hooks)
 			hunter.mode = if hunter.dwellIsSearch then "search-closet" else "listen"
 		end
 		touchCheck()
+
+		local moving = hunter.dwell <= 0 and (hunter.charge ~= nil or hunter.path ~= nil)
+		if moving and not stepsSound.IsPlaying then
+			stepsSound:Play()
+		elseif not moving and stepsSound.IsPlaying then
+			stepsSound:Stop()
+		end
+		stepsSound.PlaybackSpeed = if hunter.charge then 1.35 else 0.9
+		if hunter.charge and not hunter.growled and os.clock() - lastGrowl > 6 then
+			hunter.growled = true
+			lastGrowl = os.clock()
+			growlSound:Play()
+		elseif not hunter.charge then
+			hunter.growled = false
+		end
+
 		model:PivotTo(CFrame.lookAt(hunter.pos, hunter.pos + hunter.facing))
 	end
 
