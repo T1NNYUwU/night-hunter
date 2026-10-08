@@ -198,7 +198,7 @@ end
 function Sim.runEpisode(opts)
 	local graph = opts.graph or HouseGraph.build()
 	local rng = Random.new(opts.seed)
-	local brain = HunterBrain.new(opts.brain, graph, Random.new(opts.seed + 7919), SPAWN_ROOM)
+	local brain = HunterBrain.new(opts.brain, graph, Random.new(opts.seed + 7919), SPAWN_ROOM, { model = opts.model, planner = opts.planner })
 	local hearing = opts.hearing or 1
 	local patrolSpeed = opts.patrolSpeed or 12
 	local chargeSpeed = opts.chargeSpeed or 18
@@ -241,6 +241,15 @@ function Sim.runEpisode(opts)
 	end
 
 	local truthSum, truthCount, msSum, ticks = 0, 0, 0, 0
+	-- opts.record: keep every player's node per tick (and where the hunter was) for fitting
+	-- an OpponentModel. node 0 = caught.
+	local trajectories = nil
+	if opts.record then
+		trajectories = {}
+		for i = 1, #players do
+			trajectories[i] = {}
+		end
+	end
 	local maxTicks = math.floor((opts.seconds or 180) / DT)
 
 	for tick = 1, maxTicks do
@@ -294,7 +303,15 @@ function Sim.runEpisode(opts)
 
 		-- Hearing.
 		local hunterRoom = graph.nodes[hunter.node].room
-		local obs = { hunterNode = hunter.node, players = {}, noises = {}, quiet = {}, checked = checked }
+		local obs = {
+			hunterNode = hunter.node,
+			players = {},
+			noises = {},
+			quiet = {},
+			checked = checked,
+			idle = awake and hunter.dwell <= 0 and not hunter.nextNode,
+			patrolSpeed = patrolSpeed,
+		}
 		for _, p in players do
 			if not p.caught then
 				table.insert(obs.players, p.key)
@@ -330,6 +347,11 @@ function Sim.runEpisode(opts)
 		end
 		msSum += brain.lastMs
 		ticks += 1
+		if trajectories then
+			for i, p in players do
+				table.insert(trajectories[i], { node = if p.caught then 0 else p.node, hunterRoom = graph.nodes[hunter.node].room })
+			end
+		end
 
 		if brain.filters then
 			for _, p in players do
@@ -350,6 +372,8 @@ function Sim.runEpisode(opts)
 
 	result.beliefTruth = if truthCount > 0 then truthSum / truthCount else nil
 	result.brainMs = if ticks > 0 then msSum / ticks else 0
+	result.planMs = brain.planMs
+	result.trajectories = trajectories
 	return result
 end
 
@@ -382,13 +406,21 @@ function Sim.compare(opts)
 	local rows = {}
 	local episodes = opts.episodes or 100
 	for _, policy in opts.policies or { "wanderer", "hider", "decoy", "collector" } do
-		for _, brainKind in opts.brains or { "rule", "belief" } do
+		for _, spec in opts.brains or { "rule", "belief" } do
+			if type(spec) == "string" then
+				spec = { label = spec, kind = spec }
+			end
 			local caught, total, survived, wins, firsts, truths, ms = 0, 0, 0, 0, {}, {}, {}
-			for seed = 1, episodes do
+			for seed = (opts.firstSeed or 1), (opts.firstSeed or 1) + episodes - 1 do
+				if opts.yield and seed % 10 == 0 then
+					task.wait() -- long runs: let Studio breathe
+				end
 				local r = Sim.runEpisode({
 					graph = graph,
 					seed = seed,
-					brain = brainKind,
+					brain = spec.kind,
+					model = spec.model,
+					planner = spec.planner,
 					policy = policy,
 					players = opts.players or 2,
 					seconds = opts.seconds or 180,
@@ -415,7 +447,11 @@ function Sim.compare(opts)
 			end
 			table.insert(rows, {
 				policy = policy,
-				brain = brainKind,
+				brain = spec.label,
+				caught = caught,
+				total = total,
+				wins = wins,
+				episodes = episodes,
 				catchRate = caught / total,
 				survival = survived / episodes,
 				winRate = wins / episodes,
@@ -438,12 +474,12 @@ function Sim.report(opts)
 			opts.seconds or 180,
 			opts.episodes or 100
 		),
-		"policy     brain   catch%   team-survived   win%    first-catch(s)    belief-on-truth   ms/decision",
+		"policy     brain          catch%   team-survived   win%    first-catch(s)    belief-on-truth   ms/decision",
 	}
 	for _, r in rows do
 		table.insert(
 			lines,
-			("%-10s %-7s %5.1f%%   %5.1f%%          %5.1f%%  %6.1f ± %-5.1f      %-15s   %.3f"):format(
+			("%-10s %-14s %5.1f%%   %5.1f%%          %5.1f%%  %6.1f ± %-5.1f      %-15s   %.3f"):format(
 				r.policy,
 				r.brain,
 				r.catchRate * 100,

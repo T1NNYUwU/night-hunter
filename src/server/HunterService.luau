@@ -9,8 +9,10 @@
 -- start(house, hooks) returns a handle the NightCycle drives:
 --   setActive(bool)  newNight()  setLair(room)  setSpeeds(patrol, charge)  setHearing(scale)
 --   emitSound(room, position?, kind)  playerRevived(player, node)
+--   setBrain(kind, useModel)  setModel(opponentModel)  stats()
 -- hooks.isDowned(player) -> bool   downed players make no sound and cannot be caught again
 -- hooks.onCaught(player)
+-- hooks.onTick(sample)  every 0.5 s: { hunterRoom, nodes = { [Player] = node or 0 } } (telemetry)
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -28,6 +30,7 @@ local LISTEN_SECONDS = 1.0 -- pause in each room it reaches while searching
 local SEARCH_SECONDS = 1.2 -- opening a closet
 local CHARGE_MEMORY = 2.5 -- keeps rushing at the last precise sound this long
 local CATCH_RADIUS = 3.5
+local PLAN_BUDGET_MS = 4
 local CLOSET_RADIUS = 2.6
 local DECOY_COOLDOWN = 4
 local SPAWN_ROOM, HUNTER_START = HouseGraph.SPAWN_ROOM, HouseGraph.DEFAULT_LAIR
@@ -136,7 +139,19 @@ function HunterService.start(house, hooks)
 	state.Name = "NightHunterState"
 	state.Parent = Workspace
 
-	local brain = HunterBrain.new("belief", graph, Random.new(), SPAWN_ROOM)
+	-- Which brain hunts (rule / belief / pomcp), and whether it uses the learned OpponentModel.
+	local brainKind, useModel = "pomcp", false
+	local opponentModel = nil
+	local function makeBrain(startNode: number?)
+		local model = if useModel then opponentModel else nil
+		-- Planning gets at most PLAN_BUDGET_MS per decision so a full server never hitches.
+		return HunterBrain.new(brainKind, graph, Random.new(), startNode, { model = model, planner = { budgetMs = PLAN_BUDGET_MS } })
+	end
+	local function brainLabel(): string
+		return brainKind .. (if useModel and opponentModel and brainKind ~= "rule" then "+model" else "")
+	end
+	local brain = makeBrain(SPAWN_ROOM)
+	local perf = { decisions = 0, msSum = 0, plans = 0, planMsSum = 0, planMsMax = 0 }
 	local active = false
 	local patrolSpeed, chargeSpeed = 10, 15
 	local hearScale = 1
@@ -190,7 +205,8 @@ function HunterService.start(house, hooks)
 	end
 
 	local function pushState()
-		state:SetAttribute("Mode", brain.kind)
+		state:SetAttribute("Mode", brainLabel())
+		state:SetAttribute("ModelVersion", if opponentModel then opponentModel.version else "none")
 		state:SetAttribute("Caught", caught)
 		state:SetAttribute("BrainMs", math.round(brain.lastMs * 1000) / 1000)
 		state:SetAttribute("ShowBelief", showBelief)
@@ -235,9 +251,11 @@ function HunterService.start(house, hooks)
 		hunter.checked = {}
 
 		local sounds = {}
+		local sample = { hunterRoom = room, nodes = {} }
 		for _, player in Players:GetPlayers() do
 			local root = getRoot(player)
 			local node = root and not isDowned(player) and HouseGraph.nodeAt(graph, root.Position - origin, CLOSET_RADIUS)
+			sample.nodes[player] = node or 0
 			if node then
 				table.insert(obs.players, tostring(player.UserId))
 				local v = root.AssemblyLinearVelocity
@@ -274,7 +292,20 @@ function HunterService.start(house, hooks)
 			obs.quiet[room] = true -- stood here listening and heard nothing
 		end
 
+		obs.idle = not hunter.charge and not hunter.path and hunter.dwell <= 0
+		obs.patrolSpeed = patrolSpeed
+		local plansBefore = brain.plans or 0
 		local target = brain.decide(obs)
+		perf.decisions += 1
+		perf.msSum += brain.lastMs
+		if (brain.plans or 0) > plansBefore then
+			perf.plans += 1
+			perf.planMsSum += brain.planMs
+			perf.planMsMax = math.max(perf.planMsMax, brain.planMs)
+		end
+		if hooks and hooks.onTick then
+			hooks.onTick(sample)
+		end
 
 		if best and bestHops <= 1 then
 			-- Reflex: rush at a sound in this room or the next one. A sound in this room is
@@ -433,9 +464,21 @@ function HunterService.start(house, hooks)
 		table.insert(pendingSounds, { room = options[rng:NextInteger(1, #options)], loudness = Acoustics.LOUDNESS.decoy, decoy = true })
 	end)
 
+	-- Studio debug (M): rule → belief → pomcp → pomcp+model (if a model is loaded) → rule
 	modeRemote.OnServerEvent:Connect(function()
-		local kind = if brain.kind == "belief" then "rule" else "belief"
-		brain = HunterBrain.new(kind, graph, Random.new(), nil) -- switched mid-game: no prior knowledge
+		if not RunService:IsStudio() then
+			return
+		end
+		if brainKind == "rule" then
+			brainKind, useModel = "belief", false
+		elseif brainKind == "belief" then
+			brainKind, useModel = "pomcp", false
+		elseif brainKind == "pomcp" and not useModel and opponentModel then
+			useModel = true
+		else
+			brainKind, useModel = "rule", false
+		end
+		brain = makeBrain(nil) -- switched mid-game: no prior knowledge
 		pushState()
 	end)
 
@@ -462,9 +505,34 @@ function HunterService.start(house, hooks)
 
 	-- Fresh night: everyone starts in the spawn room and the hunter knows it.
 	function handle.newNight()
-		brain = HunterBrain.new(brain.kind, graph, Random.new(), SPAWN_ROOM)
+		brain = makeBrain(SPAWN_ROOM)
+		perf = { decisions = 0, msSum = 0, plans = 0, planMsSum = 0, planMsMax = 0 }
 		placeAtStart()
 		pushState()
+	end
+
+	-- kind: "rule" | "belief" | "pomcp". Takes effect at the next newNight().
+	function handle.setBrain(kind: string, withModel: boolean?)
+		brainKind = kind
+		useModel = withModel == true
+		pushState()
+	end
+
+	function handle.setModel(model)
+		opponentModel = model
+		pushState()
+	end
+
+	function handle.stats()
+		return {
+			brain = brainLabel(),
+			modelVersion = if useModel and opponentModel then opponentModel.version else nil,
+			decisions = perf.decisions,
+			avgDecisionMs = if perf.decisions > 0 then perf.msSum / perf.decisions else 0,
+			plans = perf.plans,
+			avgPlanMs = if perf.plans > 0 then perf.planMsSum / perf.plans else 0,
+			maxPlanMs = perf.planMsMax,
+		}
 	end
 
 	function handle.setSpeeds(patrol: number, charge: number)

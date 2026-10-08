@@ -1,0 +1,26 @@
+# Local stack with PostgreSQL:  docker compose up --build   →  http://localhost:8000
+# Keys come from your shell or a .env file next to this one (never commit real keys).
+services:
+  api:
+    build: .
+    ports: ["8000:8000"]
+    environment:
+      DATABASE_URL: postgresql+psycopg://nighthunter:nighthunter@db/nighthunter
+      GAME_API_KEY: ${GAME_API_KEY:?set GAME_API_KEY}
+      ADMIN_API_KEY: ${ADMIN_API_KEY:?set ADMIN_API_KEY}
+    depends_on:
+      db:
+        condition: service_healthy
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: nighthunter
+      POSTGRES_PASSWORD: nighthunter
+      POSTGRES_DB: nighthunter
+    volumes: ["pgdata:/var/lib/postgresql/data"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U nighthunter"]
+      interval: 2s
+      retries: 20
+volumes:
+  pgdata:

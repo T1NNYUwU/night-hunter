@@ -6,6 +6,7 @@
 -- There is no rule like "go to the noise": the hunter only ever reads the resulting belief.
 
 local HouseGraph = require(script.Parent.HouseGraph)
+local OpponentModel = require(script.Parent.OpponentModel)
 
 export type Filter = {
 	graph: HouseGraph.Graph,
@@ -37,8 +38,16 @@ function ParticleFilter.reset(filter: Filter, node: number)
 	end
 end
 
-function ParticleFilter.predict(filter: Filter)
+-- `model` (an OpponentModel) and `hunterRoom` are optional: with them, guesses move the way
+-- players were seen to move relative to the hunter; without, a fixed random walk.
+function ParticleFilter.predict(filter: Filter, model: any?, hunterRoom: number?)
 	local graph = filter.graph
+	if model and hunterRoom then
+		for i = 1, filter.n do
+			filter.particles[i] = OpponentModel.step(model, graph, filter.rng, filter.particles[i], hunterRoom)
+		end
+		return
+	end
 	for i = 1, filter.n do
 		local node = filter.particles[i]
 		local moveProb = if graph.nodes[node].kind == "hide" then MOVE_PROB_HIDE else MOVE_PROB_ROOM

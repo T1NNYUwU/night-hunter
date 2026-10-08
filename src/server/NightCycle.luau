@@ -7,16 +7,24 @@
 -- Objectives by night: supplies (collect crates), power (fix fuse boxes), escape (night 7:
 -- find the key, then leave through the front door).
 -- Lose a night = time runs out or everyone is down → back to night 1.
+-- Which hunter brain hunts each night comes from Config (story: smarter every night;
+-- experiment: one random condition per run, for the playtest). Every night is recorded by
+-- Telemetry and sent to the backend, which fits the OpponentModel from real players.
 -- All state is published as Attributes on Workspace.NightHunterState for the HUD.
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
+local ServerStorage = game:GetService("ServerStorage")
 local Workspace = game:GetService("Workspace")
 
 local Shared = ReplicatedStorage:WaitForChild("NightHunter")
 local HouseGraph = require(Shared:WaitForChild("HouseGraph"))
 local Items = require(Shared:WaitForChild("Items"))
+local OpponentModel = require(Shared:WaitForChild("OpponentModel"))
+local DefaultModel = require(Shared:WaitForChild("DefaultModel"))
+local Config = require(script.Parent.Config)
+local Telemetry = require(script.Parent.Telemetry)
 local HouseDecor = require(script.Parent.HouseDecor)
 local HunterService = require(script.Parent.HunterService)
 local PlayerKit = require(script.Parent.PlayerKit)
@@ -70,6 +78,10 @@ function NightCycle.start(house)
 	local lair = HouseGraph.DEFAULT_LAIR
 	local wakeAt = 0
 
+	local stateFolder = Workspace:FindFirstChild("NightHunterState") or Instance.new("Folder")
+	stateFolder.Name = "NightHunterState"
+	stateFolder.Parent = Workspace
+	local telemetry = Telemetry.start(stateFolder)
 	local hunter = HunterService.start(house, {
 		isDowned = function(player)
 			return downed[player] ~= nil
@@ -77,8 +89,31 @@ function NightCycle.start(house)
 		onCaught = function(player)
 			NightCycle._down(player)
 		end,
+		onTick = function(sample)
+			telemetry.onTick(sample)
+		end,
 	})
 	local state = hunter.state
+
+	-- The opponent model: the one shipped with the game, replaced by the backend's latest fit
+	-- from real players when a backend is configured.
+	hunter.setModel(OpponentModel.fromParams(DefaultModel))
+	task.spawn(function()
+		if telemetry.isConfigured() then
+			local remote = OpponentModel.fromParams(telemetry.fetchModelParams())
+			if remote then
+				hunter.setModel(remote)
+				print(("[NightHunter] Opponent model %s loaded from the backend (%d steps)"):format(remote.version, remote.samples))
+			end
+		end
+	end)
+
+	local function hunterMode(): string
+		local mode = ServerStorage:GetAttribute("HunterMode")
+		return if mode == "experiment" or mode == "story" then mode else Config.hunterMode
+	end
+	local runCondition = nil -- experiment mode: { label, brain, model } for the whole run
+	local condition = "" -- label of tonight's hunter, e.g. "pomcp+model"
 
 	local kit = PlayerKit.start({
 		onClick = function(player)
@@ -93,6 +128,9 @@ function NightCycle.start(house)
 	local econ = Economy.start({
 		house = house,
 		hunter = hunter,
+		onItemUsed = function(player, itemId)
+			telemetry.event("item", player, { item = itemId })
+		end,
 		phase = function()
 			return phase
 		end,
@@ -161,9 +199,10 @@ function NightCycle.start(house)
 		end
 		downed[player] = nil
 		p:Destroy()
-		player:SetAttribute("Downed", false) -- PlayerKit restores movement
+			player:SetAttribute("Downed", false) -- PlayerKit restores movement
 		local root = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
 		local node = root and HouseGraph.nodeAt(graph, root.Position - origin, 2.6)
+		telemetry.event("revive", player, { node = node or 0 })
 		if node then
 			hunter.playerRevived(player, node) -- it knows where its victim fell
 			hunter.emitSound(graph.nodes[node].room, root.Position, "revive")
@@ -177,6 +216,7 @@ function NightCycle.start(house)
 			return
 		end
 		downsThisNight += 1
+		telemetry.event("down", player, { node = HouseGraph.nodeAt(graph, root.Position - origin, 2.6) or 0 })
 		player:SetAttribute("Downed", true) -- PlayerKit freezes movement and switches the light off
 		local p = prompt(root, "Revive", player.DisplayName, REVIVE_SECONDS)
 		p.Triggered:Connect(function(by: Player)
@@ -194,6 +234,7 @@ function NightCycle.start(house)
 		progress += 1
 		econ.addCoins(player, coins)
 		hunter.emitSound(room, position, "crate") -- every objective is loud work
+		telemetry.event("objective", player, { progress = progress, room = room })
 		pushState()
 		if progress >= goal then
 			endNight("Win")
@@ -343,6 +384,7 @@ function NightCycle.start(house)
 			doorPrompt.Enabled = false
 			doorPrompt.Triggered:Connect(function(by: Player)
 				if phase == "Night" and not downed[by] and by:GetAttribute("HasKey") then
+					telemetry.event("escape", by)
 					progress = goal
 					pushState()
 					endNight("Win")
@@ -412,7 +454,26 @@ function NightCycle.start(house)
 	local function startRun()
 		night = 1
 		econ.resetRun()
+		telemetry.beginRun()
+		runCondition = nil
+		if hunterMode() == "experiment" then
+			runCondition = Config.CONDITIONS[rng:NextInteger(1, #Config.CONDITIONS)]
+		end
 		beginDay()
+	end
+
+	-- Tonight's brain: from the story schedule, or the run's experiment condition.
+	local function chooseBrain()
+		local kind, withModel
+		if runCondition then
+			kind, withModel = runCondition.brain, runCondition.model
+		else
+			local entry = Config.BRAIN_BY_NIGHT[math.min(night, #Config.BRAIN_BY_NIGHT)]
+			kind, withModel = entry[1], entry[2]
+		end
+		hunter.setBrain(kind, withModel)
+		condition = kind .. (if withModel and kind ~= "rule" then "+model" else "")
+		state:SetAttribute("Condition", condition)
 	end
 
 	local function toTitle()
@@ -434,7 +495,15 @@ function NightCycle.start(house)
 		local n = math.min(night, #PATROL_SPEED)
 		hunter.setSpeeds(PATROL_SPEED[n], CHARGE_SPEED[n])
 		hunter.setHearing(HEARING[n])
+		chooseBrain()
 		hunter.newNight()
+		telemetry.beginNight({
+			night = night,
+			objective = objective,
+			goal = goal,
+			condition = condition,
+			hunterMode = if runCondition then "experiment" else "story",
+		})
 		pushState()
 	end
 
@@ -455,6 +524,12 @@ function NightCycle.start(house)
 		if result ~= "Win" then
 			Progress.recordRun(night, result == "Complete") -- the run is over
 		end
+		telemetry.endNight({
+			outcome = result,
+			progress = progress,
+			downs = downsThisNight,
+			hunter = hunter.stats(),
+		})
 		pushState()
 	end
 
@@ -511,6 +586,11 @@ function NightCycle.start(house)
 	-- Studio only (for testing): set DebugJumpToNight = n on NightHunterState to start that
 	-- night's day, or change DebugSkipPhase to end the current Day / Report right away.
 	if RunService:IsStudio() then
+		-- DebugDumpTelemetry: copy the newest queued night record (JSON) to DebugTelemetryJson.
+		state:GetAttributeChangedSignal("DebugDumpTelemetry"):Connect(function()
+			local last = telemetry.queue[#telemetry.queue]
+			state:SetAttribute("DebugTelemetryJson", if last then game:GetService("HttpService"):JSONEncode(last) else "")
+		end)
 		state:GetAttributeChangedSignal("DebugSkipPhase"):Connect(function()
 			if phase == "Day" or phase == "Report" then
 				phaseEndsAt = Workspace:GetServerTimeNow()

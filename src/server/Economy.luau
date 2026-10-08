@@ -133,6 +133,9 @@ function Economy.start(ctx)
 			player:SetAttribute("AdrenalineUntil", Workspace:GetServerTimeNow() + Items.ADRENALINE_SECONDS)
 		end
 		player:SetAttribute(inventoryKey(itemId), owned - 1)
+		if ctx.onItemUsed then
+			ctx.onItemUsed(player, itemId)
+		end
 	end)
 
 	Players.PlayerAdded:Connect(resetPlayer)
