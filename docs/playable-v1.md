@@ -99,29 +99,29 @@
 **ตรวจแล้ว:** บิลด์บ้านได้, Play ใช้บ้านจากแมพ (ไม่สร้างซ้ำ), เสียงทุกไฟล์โหลดได้, ฝีเท้าดังตอนปีศาจเดิน, ไม่มี error
 **ยังไม่ได้ตรวจด้วยตา:** หน้าตาห้องทั้ง 16 ห้องและลำแสงไฟฉาย — เครื่องมือจับภาพของ MCP ให้ภาพขาวเมื่อหน้าต่าง Studio ไม่ได้แสดงอยู่ ต้องให้คนเล่นดู
 
-## M3 results (2026-10-08)
+## ผล M3 (2026-10-08)
 
-**Done**
-- Title screen: PLAY / HOW TO PLAY / saved stats (best night + escapes), reappears after an escape
-- Coins: crate 10, fuse 12, key 15, survived night +15 (reset when a run is lost)
-- Daytime shop (V key / SHOP button) with 3 items, used at night:
-  - Noise Maker (Q, 20 coins): throw a can 18 studs ahead; the hunter hears it as a loud noise
-  - Battery (R, 10 coins): refill the flashlight (refused if already full)
-  - Adrenaline (X, 25 coins): 6 seconds of running at speed 24 without draining stamina
-- Nightly objective schedule: crates · crates · fuse boxes · crates · fuse boxes · crates · **key + escape through the front door**
-- Saved progress (DataStore `NightHunterProgress_v1`); if DataStore is unavailable the game still runs and warns once
+**ทำแล้ว**
+- หน้าเริ่มเกม: PLAY / วิธีเล่น / สถิติที่บันทึกไว้ (คืนไกลสุด + จำนวนครั้งที่หนีรอด) กลับมาแสดงหลังหนีสำเร็จ
+- เหรียญ: ลัง 10, ฟิวส์ 12, กุญแจ 15, รอดหนึ่งคืน +15 (รีเซ็ตเมื่อแพ้ทั้งรอบ)
+- ร้านค้าตอนกลางวัน (ปุ่ม V / ปุ่ม SHOP) ไอเทม 3 อย่าง ใช้ตอนกลางคืน:
+  - Noise Maker (Q, 20 เหรียญ): ปากระป๋องไปข้างหน้า 18 studs ปีศาจได้ยินเป็นเสียงดัง
+  - Battery (R, 10 เหรียญ): เติมแบตไฟฉาย (ถ้าเต็มอยู่แล้วจะไม่ให้ใช้)
+  - Adrenaline (X, 25 เหรียญ): วิ่งเร็ว 24 นาน 6 วินาทีโดยไม่เสียสตามินา
+- ตารางภารกิจรายคืน: ลัง · ลัง · ฟิวส์ · ลัง · ฟิวส์ · ลัง · **หากุญแจ + หนีออกประตูหน้า**
+- บันทึกความคืบหน้า (DataStore `NightHunterProgress_v1`) ถ้าใช้ DataStore ไม่ได้ เกมยังเล่นได้และเตือนครั้งเดียว
 
-**Tested in Studio (client + server scripts)**
-- Waiting → PLAY → Day → shop: buy 4 items, coins drop correctly (100 → 25), bogus item ID refused, using items during the day refused
-- Night: throw Noise Maker ✓, Adrenaline speed 20 → 24 with no stamina drain ✓, Battery refused when full ✓
-- Night 2 crates 4/4 → Win, coins 4×10+15 = 55 ✓
-- Night 3 fuse boxes 3/3 → Win, coins 3×12+15 = 51 ✓
-- Night 7 take key → HUD says to go to the front door → Escape → **Complete**, Escapes = 1, BestNight = 7, back to the title screen ✓
-- Solo player downed → Fail → BestNight recorded → straight back to night 1, coins/items reset ✓
-- Bug found and fixed: rooms with a door on every wall had nowhere to put a fuse box → `beginDay` crashed. Fuse boxes are now only placed in rooms with a free wall
-  (re-tested 12 rounds across nights 3/5: fuse box count always matches the goal)
+**ทดสอบใน Studio (สคริปต์ฝั่ง client + server)**
+- Waiting → PLAY → กลางวัน → ร้าน: ซื้อ 4 ชิ้น เหรียญลดถูกต้อง (100 → 25), ไอดีไอเทมมั่วถูกปฏิเสธ, ใช้ของตอนกลางวันถูกปฏิเสธ ✓
+- กลางคืน: ปา Noise Maker ✓, Adrenaline ความเร็ว 20 → 24 สตามินาไม่ลด ✓, Battery ถูกปฏิเสธตอนแบตเต็ม ✓
+- คืน 2 ลัง 4/4 → ชนะ, เหรียญ 4×10+15 = 55 ✓
+- คืน 3 ฟิวส์ 3/3 → ชนะ, เหรียญ 3×12+15 = 51 ✓
+- คืน 7 เก็บกุญแจ → HUD บอกให้ไปประตูหน้า → Escape → **Complete**, Escapes = 1, BestNight = 7, กลับหน้าเริ่มเกม ✓
+- เล่นคนเดียวแล้วล้ม → แพ้ → บันทึก BestNight → กลับคืน 1 ทันที เหรียญ/ไอเทมรีเซ็ต ✓
+- เจอและแก้บั๊ก: ห้องที่มีประตูทุกด้านไม่มีผนังให้ติดตู้ฟิวส์ → `beginDay` พัง ตอนนี้ตู้ฟิวส์จะเลือกเฉพาะห้องที่มีผนังว่าง
+  (ทดสอบซ้ำ 12 รอบในคืน 3/5: จำนวนตู้ฟิวส์ตรงกับเป้าทุกครั้ง)
 
-**Not yet verified with my own eyes / still missing**
-- How the title screen, shop and buttons look on a phone
-- Whether 4 fuse boxes on night 5 is too hard with real players
-- Wardrobe and fuse box may end up on the same wall → the E prompts would compete (only one shows)
+**ยังไม่ได้ตรวจด้วยตา / รู้ว่ายังขาด**
+- หน้าตาหน้าเริ่มเกม ร้านค้า และปุ่มบนมือถือ
+- ฟิวส์ 4 ตู้ในคืน 5 ยากไปหรือไม่สำหรับคนเล่นจริง
+- ตู้ซ่อนกับตู้ฟิวส์อาจอยู่ผนังเดียวกัน → prompt ปุ่ม E จะแย่งกัน (ขึ้นได้ทีละอัน)
