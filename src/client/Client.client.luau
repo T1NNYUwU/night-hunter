@@ -1,6 +1,7 @@
 -- Survivor client: first-person view, controls, HUD and the scary bits.
 --   Shift (hold) sprint · C crouch on/off · F / click flashlight · E interact (prompts)
---   Mobile: on-screen SPRINT / CROUCH / LIGHT buttons (ContextActionService touch buttons)
+--   V shop (day) · Q Noise Maker · R Battery · X Adrenaline (night)
+--   Mobile: on-screen RUN / SNEAK / LIGHT / SHOP / item buttons (ContextActionService touch buttons)
 --   Studio only: G decoy · M switch brain · B show/hide the hunter's belief (debug)
 
 local CollectionService = game:GetService("CollectionService")
@@ -14,7 +15,11 @@ local Workspace = game:GetService("Workspace")
 local SoundService = game:GetService("SoundService")
 
 local player = Players.LocalPlayer
-local Sounds = require(ReplicatedStorage:WaitForChild("NightHunter"):WaitForChild("Sounds"))
+local Shared = ReplicatedStorage:WaitForChild("NightHunter")
+local Sounds = require(Shared:WaitForChild("Sounds"))
+local Items = require(Shared:WaitForChild("Items"))
+local TitleScreen = require(script.Parent:WaitForChild("TitleScreen"))
+local ShopPanel = require(script.Parent:WaitForChild("ShopPanel"))
 local remotes = ReplicatedStorage:WaitForChild("NightHunterRemotes")
 local state = Workspace:WaitForChild("NightHunterState")
 
@@ -66,6 +71,23 @@ ContextActionService:SetPosition("NightHunterSprint", UDim2.new(1, -170, 1, -170
 ContextActionService:SetPosition("NightHunterCrouch", UDim2.new(1, -95, 1, -230))
 ContextActionService:SetPosition("NightHunterLight", UDim2.new(1, -230, 1, -95))
 
+-- Items: one key each, used at night. The server checks the phase, the count and a cooldown.
+local ITEM_BUTTON_POS = {
+	decoy = UDim2.new(1, -95, 1, -305),
+	battery = UDim2.new(1, -170, 1, -305),
+	adrenaline = UDim2.new(1, -245, 1, -305),
+}
+for _, id in Items.order do
+	local actionName = "NightHunterItem_" .. id
+	ContextActionService:BindAction(actionName, function(_, inputState)
+		if inputState == Enum.UserInputState.Begin then
+			remotes:WaitForChild("UseItem"):FireServer(id)
+		end
+		return Enum.ContextActionResult.Sink
+	end, true, Enum.KeyCode[Items.list[id].key])
+	ContextActionService:SetPosition(actionName, ITEM_BUTTON_POS[id])
+end
+
 if RunService:IsStudio() then
 	for actionName, binding in { NightHunterDecoy = { Enum.KeyCode.G, "Decoy" }, NightHunterMode = { Enum.KeyCode.M, "ToggleMode" }, NightHunterBelief = { Enum.KeyCode.B, "ToggleBelief" } } do
 		ContextActionService:BindAction(actionName, function(_, inputState)
@@ -84,6 +106,20 @@ gui.Name = "NightHunterHud"
 gui.ResetOnSpawn = false
 gui.IgnoreGuiInset = true
 gui.Parent = player:WaitForChild("PlayerGui")
+
+local shop = ShopPanel.mount(gui, state, player, remotes)
+local title = TitleScreen.mount(gui, state, player, function()
+	remotes:WaitForChild("Ready"):FireServer()
+end)
+
+ContextActionService:BindAction("NightHunterShop", function(_, inputState)
+	if inputState == Enum.UserInputState.Begin then
+		shop.toggle()
+	end
+	return Enum.ContextActionResult.Sink
+end, true, Enum.KeyCode.V, Enum.KeyCode.ButtonSelect)
+ContextActionService:SetTitle("NightHunterShop", "SHOP")
+ContextActionService:SetPosition("NightHunterShop", UDim2.new(1, -95, 1, -380))
 
 local function label(props)
 	local l = Instance.new("TextLabel")
@@ -109,7 +145,11 @@ local padding = Instance.new("UIPadding")
 padding.PaddingLeft = UDim.new(0, 10)
 padding.PaddingTop = UDim.new(0, 8)
 padding.Parent = info
-local debugInfo = label({ frame = UDim2.fromOffset(280, 20), pos = UDim2.fromOffset(12, 116), size = 12, color = Color3.fromRGB(160, 160, 170), alignX = Enum.TextXAlignment.Left })
+local wallet = label({ bg = 0.35, frame = UDim2.fromOffset(280, 26), pos = UDim2.fromOffset(12, 116), size = 13, color = Color3.fromRGB(255, 220, 150), alignX = Enum.TextXAlignment.Left })
+local walletPadding = Instance.new("UIPadding")
+walletPadding.PaddingLeft = UDim.new(0, 10)
+walletPadding.Parent = wallet
+local debugInfo = label({ frame = UDim2.fromOffset(280, 20), pos = UDim2.fromOffset(12, 146), size = 12, color = Color3.fromRGB(160, 160, 170), alignX = Enum.TextXAlignment.Left })
 debugInfo.Visible = RunService:IsStudio()
 
 local banner = label({ frame = UDim2.fromOffset(560, 90), pos = UDim2.fromScale(0.5, 0.22), anchor = Vector2.new(0.5, 0.5), size = 32, font = Enum.Font.GothamBold, stroke = 0.4 })
@@ -399,7 +439,7 @@ end)
 local RESULT_TEXT = {
 	Win = "NIGHT SURVIVED",
 	Fail = "THE HUNTER WINS — back to night 1",
-	Complete = "YOU SURVIVED ALL 7 NIGHTS!",
+	Complete = "YOU ESCAPED THE HOUSE!",
 }
 
 local function clock(seconds: number): string
@@ -412,14 +452,34 @@ while true do
 	local night = state:GetAttribute("Night") or 1
 	local left = (state:GetAttribute("PhaseEndsAt") or 0) - Workspace:GetServerTimeNow()
 
-	info.Text = ("NIGHT %d / %d   ·   %s %s\nCrates: %d / %d"):format(
+	title.update()
+	shop.update()
+
+	info.Text = ("NIGHT %d / %d   ·   %s %s\n%s"):format(
 		night,
 		state:GetAttribute("LastNight") or 7,
 		string.upper(phase),
 		clock(left),
-		state:GetAttribute("Crates") or 0,
-		state:GetAttribute("CratesNeeded") or 0
+		state:GetAttribute("ObjectiveText") or ""
 	)
+
+	-- Wallet line: coins, what you carry, the key, and the adrenaline timer.
+	local parts = { ("%d coins"):format(player:GetAttribute("Coins") or 0) }
+	for _, id in Items.order do
+		local count = player:GetAttribute("Inv_" .. id) or 0
+		ContextActionService:SetTitle("NightHunterItem_" .. id, ("%s %d"):format(Items.list[id].key, count))
+		if count > 0 then
+			table.insert(parts, ("%s x%d [%s]"):format(Items.list[id].name, count, Items.list[id].key))
+		end
+	end
+	if player:GetAttribute("HasKey") then
+		table.insert(parts, "KEY: go to the front door!")
+	end
+	local boostLeft = (player:GetAttribute("AdrenalineUntil") or 0) - Workspace:GetServerTimeNow()
+	if boostLeft > 0 then
+		table.insert(parts, ("ADRENALINE %ds"):format(math.ceil(boostLeft)))
+	end
+	wallet.Text = table.concat(parts, "  ·  ")
 	debugInfo.Text = ("[debug] brain %s · %s · %.3f ms · G/M/B"):format(
 		string.upper(state:GetAttribute("Mode") or "?"),
 		state:GetAttribute("HunterMode") or "?",
@@ -433,8 +493,10 @@ while true do
 	staminaCaption.Text = ("%s  (Shift run · C sneak)"):format(string.upper(player:GetAttribute("Stance") or "walk"))
 	batteryCaption.Text = ("FLASHLIGHT %s  %d%%  (F)"):format(if player:GetAttribute("Flashlight") then "ON" else "OFF", math.floor(battery * 100))
 
-	if phase == "Day" then
-		banner.Text = ("DAY %d — get ready (%s)\nThe hunter sleeps in the %s"):format(night, clock(left), state:GetAttribute("LairRoom") or "?")
+	if phase == "Waiting" then
+		banner.Text = ""
+	elseif phase == "Day" then
+		banner.Text = ("DAY %d — get ready (%s)\nThe hunter sleeps in the %s  ·  V: shop"):format(night, clock(left), state:GetAttribute("LairRoom") or "?")
 		banner.TextColor3 = Color3.fromRGB(255, 220, 150)
 	elseif phase == "Report" then
 		local result = state:GetAttribute("Result") or ""
@@ -442,7 +504,7 @@ while true do
 		banner.TextColor3 = if result == "Fail" then Color3.fromRGB(255, 90, 90) else Color3.fromRGB(120, 255, 150)
 	elseif phase == "Night" and (state:GetAttribute("WakeAt") or 0) > 0 then
 		local wake = (state:GetAttribute("WakeAt") or 0) - Workspace:GetServerTimeNow()
-		banner.Text = ("NIGHT %d — collect %d crates\nIt is blind. It hears everything. Wakes in %d…"):format(night, state:GetAttribute("CratesNeeded") or 0, math.max(0, math.ceil(wake)))
+		banner.Text = ("NIGHT %d — %s\nIt is blind. It hears everything. Wakes in %d…"):format(night, state:GetAttribute("ObjectiveText") or "", math.max(0, math.ceil(wake)))
 		banner.TextColor3 = Color3.fromRGB(255, 120, 120)
 	else
 		banner.Text = ""

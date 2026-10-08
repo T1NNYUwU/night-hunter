@@ -12,8 +12,9 @@
 - เสร็จ: สปายก์ particle filter, ตัวจำลอง + บอท 4 นิสัย, วงจรคืน (กลางวัน/กลางคืน/รายงาน), เก็บลัง, ล้ม/ช่วยฟื้น, รังสุ่ม, เส้นความยาก 7 คืน, บ้าน 9 ห้องตกแต่งด้วย part
 - เสร็จ (2026-10-08): **Playable v1 / M1** ปีศาจตาบอดฟังเสียง (`Acoustics.luau`), มุมมองบุรุษที่ 1, ไฟฉาย + แบต, วิ่ง/ย่อง/สตามินา (`PlayerKit.luau`), jumpscare + ขอบจอแดง ผลอยู่ใน [docs/playable-v1.md](docs/playable-v1.md)
 - เสร็จ (2026-10-08): **M2** บ้าน 16 ห้อง, เฟอร์นิเจอร์จาก Creator Store (ตรวจแล้ว ดู [docs/assets.md](docs/assets.md)), เสียง (`Sounds.luau`)
-- กำลังจะทำ: **M3** ร้านค้าช่วงกลางวัน, ภารกิจหลากหลาย, ฉากจบคืน 7, เมนู, DataStore
-- ยังไม่ทำ: แมพใหญ่ + asset จาก Creator Store (M2), ร้านค้า/ภารกิจ/ฉากจบ/เมนู (M3), POMCP + backend + playtest (M4)
+- เสร็จ (2026-10-08): โมเดลปีศาจใหม่ (`AssetLibrary.HunterRig` + ท่าทางขยับข้อต่อฝั่ง client)
+- เสร็จ (2026-10-08): **M3** หน้าเริ่มเกม (PLAY / วิธีเล่น / สถิติ), ร้านค้าตอนกลางวัน + ไอเทม 3 อย่าง, เหรียญ, ภารกิจ 3 แบบ (ลัง / ฟิวส์ / กุญแจ + หนีออกประตูหน้า คืน 7), บันทึกความคืบหน้าด้วย DataStore
+- ยังไม่ทำ: POMCP / hybrid hunter, opponent model, telemetry backend, ชุดทดลอง, playtest (M4)
 
 ## โครงสร้างไฟล์ (Rojo project: `default.project.json`)
 | ที่อยู่ | ใน Studio | หน้าที่ |
@@ -25,12 +26,17 @@
 | `src/shared/Sounds.luau` | 〃 | ไอดีเสียงทั้งหมดของเกม |
 | `src/shared/Acoustics.luau` | 〃 | โมเดลเสียง: ความดัง, การลดทอนข้ามห้อง, ความเร็วแต่ละท่า (ใช้ทั้งเกมและตัวจำลอง) |
 | `src/server/Main.server.luau` | ServerScriptService.NightHunter | จุดเริ่ม: สร้าง/ใช้บ้าน → NightCycle |
-| `src/server/NightCycle.luau` | 〃 | เฟสคืน, ลัง, ล้ม/ฟื้น, รัง, ความยากรายคืน |
+| `src/shared/Items.luau` | 〃 | ไอเทมในร้าน (ราคา, จำนวนสูงสุด, ปุ่ม) และเหรียญรางวัลแต่ละภารกิจ |
+| `src/server/NightCycle.luau` | 〃 | เฟส Waiting/Day/Night/Report, ตารางภารกิจ 7 คืน (ลัง/ฟิวส์/กุญแจ), ล้ม/ฟื้น, รัง, ความยากรายคืน, ปุ่ม debug ใน Studio |
+| `src/server/Economy.luau` | 〃 | เหรียญ, ซื้อของ (กลางวัน), ใช้ของ (กลางคืน): Noise Maker / Battery / Adrenaline |
+| `src/server/Progress.luau` | 〃 | DataStore: คืนที่ไปได้ไกลสุด + จำนวนครั้งที่หนีรอด |
 | `src/server/HunterService.luau` | 〃 | ปีศาจในเกมจริง: ประสาทสัมผัส, เดิน, จับ |
 | `src/server/HouseBuilder.luau` | 〃 | สร้างโครงบ้าน, แสงตอนรัน, รัง, ensure() |
 | `src/server/HouseDecor.luau` | 〃 | ธีมห้อง, เฟอร์นิเจอร์, หน้าต่าง, โคมไฟ |
 | `src/server/PlayerKit.luau` | 〃 | ท่าทาง/ความเร็ว/สตามินา, ไฟฉาย + แบตเตอรี่ |
 | `src/client/Client.client.luau` | StarterPlayerScripts.NightHunter | มุมมองบุรุษที่ 1, ปุ่มควบคุม, HUD, jumpscare, ขอบจอแดง, ลำแสงไฟฉายของตัวเอง, ไฟกะพริบ |
+| `src/client/TitleScreen.luau` | 〃 | หน้าเริ่มเกม: PLAY, วิธีเล่น, สถิติที่บันทึกไว้ |
+| `src/client/ShopPanel.luau` | 〃 | ร้านค้าตอนกลางวัน (ปุ่ม V / SHOP) |
 | `plan.md` | — | แผนทั้งโปรเจค, ผลสปายก์, ปัญหาที่เคยเจอ |
 | `docs/*.md` | — | บันทึกแต่ละช่วง + ผลทดลอง |
 
@@ -58,8 +64,12 @@
 - ปีศาจตาบอดแต่หูดี วิ่งไวขึ้น ฉลาดขึ้น / ผู้เล่นมุมมองบุรุษที่ 1 + ไฟฉาย (2026-10-08)
 - ใช้ asset ฟรีจาก Creator Store ได้ ถ้าตรวจความปลอดภัยแล้ว หรือทำเองแต่ต้องดูดี ไม่เหลี่ยมแบบ AI ทำ
 
+## ทดสอบเร็วใน Studio (ตอน Play, รันฝั่ง Server)
+- ข้ามไปคืนที่ n: `workspace.NightHunterState:SetAttribute("DebugJumpToNight", n)`
+- จบกลางวัน/รายงานทันที: `workspace.NightHunterState:SetAttribute("DebugSkipPhase", os.clock())`
+- ทดสอบ ProximityPrompt ด้วยสคริปต์: ในมุมมองบุรุษที่ 1 ตัวละครหันตามกล้อง ต้องหันกล้อง (`Camera.CFrame`) ไปที่ของก่อน prompt ถึงจะขึ้น
+- DataStore ใน Studio จะเตือน 1 ครั้งถ้ายังไม่เปิด "Enable Studio Access to API Services" (เกมยังเล่นได้)
+
 ## งานถัดไป (เรียงตามลำดับ)
-1. ทำ M1 ให้เสร็จและเล่นทดสอบ (ดูเงื่อนไขเสร็จใน docs/playable-v1.md)
-2. M2: HouseGraph รองรับ 4×4 + ค้นหา/ตรวจ asset จาก Creator Store + ตู้มีบานประตู
-3. M3: ร้านค้า, ภารกิจหลากหลาย, ฉากจบคืน 7, เมนู, DataStore
-4. M4: POMCP, telemetry backend, ชุดทดลอง, playtest 15–30 คน
+1. ให้คนเล่นจริงลอง M3 (หน้าตา, ร้าน, ความยากของคืนฟิวส์/กุญแจ) และทดสอบช่วยฟื้นด้วย 2 คน
+2. M4: POMCP / hybrid hunter, opponent model, telemetry backend, ชุดทดลอง, playtest 15–30 คน

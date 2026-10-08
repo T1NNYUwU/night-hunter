@@ -11,7 +11,10 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 
+local Workspace = game:GetService("Workspace")
+
 local Acoustics = require(ReplicatedStorage:WaitForChild("NightHunter"):WaitForChild("Acoustics"))
+local Items = require(ReplicatedStorage:WaitForChild("NightHunter"):WaitForChild("Items"))
 
 local SPRINT_SECONDS = 5 -- full stamina bar
 local STAMINA_REGEN = 0.15 -- bars per second while not sprinting (~7 s to refill)
@@ -163,10 +166,13 @@ function PlayerKit.start(hooks)
 				local stamina = player:GetAttribute("Stamina") or 1
 				local stance = wanted[player] or "walk"
 				local moving = humanoid.MoveDirection.Magnitude > 0.1
-				if stance == "sprint" and (stamina <= 0 or not moving) then
+				local boosted = (player:GetAttribute("AdrenalineUntil") or 0) > Workspace:GetServerTimeNow()
+				if stance == "sprint" and (stamina <= 0 and not boosted or not moving) then
 					stance = "walk"
 				end
-				if stance == "sprint" then
+				if stance == "sprint" and boosted then
+					-- Adrenaline: faster, and the stamina bar does not drain
+				elseif stance == "sprint" then
 					stamina = math.max(0, stamina - dt / SPRINT_SECONDS)
 				else
 					stamina = math.min(1, stamina + dt * STAMINA_REGEN)
@@ -181,7 +187,7 @@ function PlayerKit.start(hooks)
 						setLight(player, false)
 					end
 				else
-					humanoid.WalkSpeed = Acoustics.SPEED[stance]
+					humanoid.WalkSpeed = if stance == "sprint" and boosted then Items.ADRENALINE_SPEED else Acoustics.SPEED[stance]
 					humanoid.JumpHeight = if stance == "crouch" then 0 else JUMP_HEIGHT
 				end
 

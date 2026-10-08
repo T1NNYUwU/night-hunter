@@ -98,3 +98,30 @@
 
 **ตรวจแล้ว:** บิลด์บ้านได้, Play ใช้บ้านจากแมพ (ไม่สร้างซ้ำ), เสียงทุกไฟล์โหลดได้, ฝีเท้าดังตอนปีศาจเดิน, ไม่มี error
 **ยังไม่ได้ตรวจด้วยตา:** หน้าตาห้องทั้ง 16 ห้องและลำแสงไฟฉาย — เครื่องมือจับภาพของ MCP ให้ภาพขาวเมื่อหน้าต่าง Studio ไม่ได้แสดงอยู่ ต้องให้คนเล่นดู
+
+## M3 results (2026-10-08)
+
+**Done**
+- Title screen: PLAY / HOW TO PLAY / saved stats (best night + escapes), reappears after an escape
+- Coins: crate 10, fuse 12, key 15, survived night +15 (reset when a run is lost)
+- Daytime shop (V key / SHOP button) with 3 items, used at night:
+  - Noise Maker (Q, 20 coins): throw a can 18 studs ahead; the hunter hears it as a loud noise
+  - Battery (R, 10 coins): refill the flashlight (refused if already full)
+  - Adrenaline (X, 25 coins): 6 seconds of running at speed 24 without draining stamina
+- Nightly objective schedule: crates · crates · fuse boxes · crates · fuse boxes · crates · **key + escape through the front door**
+- Saved progress (DataStore `NightHunterProgress_v1`); if DataStore is unavailable the game still runs and warns once
+
+**Tested in Studio (client + server scripts)**
+- Waiting → PLAY → Day → shop: buy 4 items, coins drop correctly (100 → 25), bogus item ID refused, using items during the day refused
+- Night: throw Noise Maker ✓, Adrenaline speed 20 → 24 with no stamina drain ✓, Battery refused when full ✓
+- Night 2 crates 4/4 → Win, coins 4×10+15 = 55 ✓
+- Night 3 fuse boxes 3/3 → Win, coins 3×12+15 = 51 ✓
+- Night 7 take key → HUD says to go to the front door → Escape → **Complete**, Escapes = 1, BestNight = 7, back to the title screen ✓
+- Solo player downed → Fail → BestNight recorded → straight back to night 1, coins/items reset ✓
+- Bug found and fixed: rooms with a door on every wall had nowhere to put a fuse box → `beginDay` crashed. Fuse boxes are now only placed in rooms with a free wall
+  (re-tested 12 rounds across nights 3/5: fuse box count always matches the goal)
+
+**Not yet verified with my own eyes / still missing**
+- How the title screen, shop and buttons look on a phone
+- Whether 4 fuse boxes on night 5 is too hard with real players
+- Wardrobe and fuse box may end up on the same wall → the E prompts would compete (only one shows)
