@@ -1,0 +1,61 @@
+# Handoff — Night Hunter (7 Nights Hunter)
+
+> สำหรับคนหรือ AI ที่มารับงานต่อ อ่านไฟล์นี้ก่อน แล้วค่อยอ่าน [plan.md](plan.md) และ [docs/playable-v1.md](docs/playable-v1.md)
+> อัปเดตล่าสุด: 2026-10-08
+
+## โปรเจคนี้คืออะไร
+โปรเจคจบ ป.ตรี วิทยาการคอมพิวเตอร์ (ทีม 3 คน, เหลือเวลา ~2–3 เดือน): เกม Roblox co-op สยองขวัญ 1–4 คน รอดให้ครบ 7 คืนในบ้านร้าง
+จุดเด่นทางวิชาการคือ **ปีศาจที่ไม่โกง** ติดตามผู้เล่นด้วย particle filter (เวอร์ชันใหม่: จากเสียงอย่างเดียว) เทียบกับปีศาจแบบ rule-based ด้วยตัวจำลองและ playtest
+ผู้ใช้เป็นนักศึกษา (สื่อสารภาษาไทย), ใช้ AI ช่วยเขียนเป็นหลัก, เน้นให้ระบบหลังบ้าน/เทคนิคลึกและวัดผลได้
+
+## ตอนนี้อยู่ตรงไหน
+- เสร็จ: สปายก์ particle filter, ตัวจำลอง + บอท 4 นิสัย, วงจรคืน (กลางวัน/กลางคืน/รายงาน), เก็บลัง, ล้ม/ช่วยฟื้น, รังสุ่ม, เส้นความยาก 7 คืน, บ้าน 9 ห้องตกแต่งด้วย part
+- เสร็จ (2026-10-08): **Playable v1 / M1** ปีศาจตาบอดฟังเสียง (`Acoustics.luau`), มุมมองบุรุษที่ 1, ไฟฉาย + แบต, วิ่ง/ย่อง/สตามินา (`PlayerKit.luau`), jumpscare + ขอบจอแดง ผลอยู่ใน [docs/playable-v1.md](docs/playable-v1.md)
+- กำลังจะทำ: **M2** แมพ 4×4 + asset จาก Creator Store + เสียง
+- ยังไม่ทำ: แมพใหญ่ + asset จาก Creator Store (M2), ร้านค้า/ภารกิจ/ฉากจบ/เมนู (M3), POMCP + backend + playtest (M4)
+
+## โครงสร้างไฟล์ (Rojo project: `default.project.json`)
+| ที่อยู่ | ใน Studio | หน้าที่ |
+|---|---|---|
+| `src/shared/HouseGraph.luau` | ReplicatedStorage.NightHunter | กราฟบ้าน (ห้อง + ตู้), ระยะทาง, ลายเซ็นของ layout |
+| `src/shared/ParticleFilter.luau` | 〃 | particle filter ต่อผู้เล่นหนึ่งคน |
+| `src/shared/HunterBrain.luau` | 〃 | สมอง `belief` และ `rule` (ใช้ทั้งในเกมและตัวจำลอง) |
+| `src/shared/Sim.luau` | 〃 | ตัวจำลองไม่มีภาพ + บอท + ตารางเปรียบเทียบ |
+| `src/shared/Acoustics.luau` | 〃 | โมเดลเสียง: ความดัง, การลดทอนข้ามห้อง, ความเร็วแต่ละท่า (ใช้ทั้งเกมและตัวจำลอง) |
+| `src/server/Main.server.luau` | ServerScriptService.NightHunter | จุดเริ่ม: สร้าง/ใช้บ้าน → NightCycle |
+| `src/server/NightCycle.luau` | 〃 | เฟสคืน, ลัง, ล้ม/ฟื้น, รัง, ความยากรายคืน |
+| `src/server/HunterService.luau` | 〃 | ปีศาจในเกมจริง: ประสาทสัมผัส, เดิน, จับ |
+| `src/server/HouseBuilder.luau` | 〃 | สร้างโครงบ้าน, แสงตอนรัน, รัง, ensure() |
+| `src/server/HouseDecor.luau` | 〃 | ธีมห้อง, เฟอร์นิเจอร์, หน้าต่าง, โคมไฟ |
+| `src/server/PlayerKit.luau` | 〃 | ท่าทาง/ความเร็ว/สตามินา, ไฟฉาย + แบตเตอรี่ |
+| `src/client/Client.client.luau` | StarterPlayerScripts.NightHunter | มุมมองบุรุษที่ 1, ปุ่มควบคุม, HUD, jumpscare, ขอบจอแดง, ลำแสงไฟฉายของตัวเอง, ไฟกะพริบ |
+| `plan.md` | — | แผนทั้งโปรเจค, ผลสปายก์, ปัญหาที่เคยเจอ |
+| `docs/*.md` | — | บันทึกแต่ละช่วง + ผลทดลอง |
+
+## วิธีรัน
+1. `start-rojo.bat` (พอร์ต 34872) → ใน Studio กด Connect ที่ปลั๊กอิน Rojo
+2. แมพบน Roblox: **7 Nights Hunter** (placeId 137354108090781) บ้านถูกบันทึกในแมพ (`Workspace.NightHunterHouse`)
+3. ถ้าแก้กราฟหรือของตกแต่ง ให้สร้างบ้านใหม่จาก command bar:
+   `require(game.ServerScriptService.NightHunter.HouseBuilder).build(require(game.ReplicatedStorage.NightHunter.HouseGraph).build())`
+4. ตัวจำลอง (command bar, ใช้สำเนาเพื่อเลี่ยง cache ของ require):
+   `print(require(game.ReplicatedStorage.NightHunter:Clone().Sim).report({ episodes = 100 }))`
+
+## ข้อควรระวัง (เคยพังมาแล้ว)
+- **ห้ามใช้ MCP `screen_capture` แบบกำหนดตำแหน่งกล้องในโหมด Edit** ถ้าหมดเวลากลางคัน กล้องจะเสียและติดไปกับไฟล์ แก้โดยลบ `Workspace.Camera` แล้ว Save (รายละเอียดใน plan.md หัวข้อ 10.1)
+- `require()` ในโหมด Edit จะ cache โมดูลรุ่นเก่า ให้ `:Clone()` โฟลเดอร์ก่อน require
+- `HouseBuilder.build()` ห้ามตั้งแสง (โหมด Edit จะมืด) แสงกลางคืนตั้งใน `ensure()` ตอนรันเท่านั้น
+- ตัวเลขความยากทั้งหมดมาจากตัวจำลอง ยังไม่ได้ยืนยันกับคนเล่นจริง
+- การช่วยฟื้นยังไม่เคยทดสอบด้วยผู้เล่นจริง 2 คน
+- โฟลเดอร์ยังไม่เป็น git repo ควร `git init` และ commit ก่อนแก้ใหญ่
+
+## การตัดสินใจที่ตกลงกับผู้ใช้แล้ว
+- ไอเดียหลักหลังเทียบมาหลายรอบ: co-op 7 คืน + ปีศาจ AI (ไอเดียที่ทิ้งและเหตุผล อยู่ใน plan.md หัวข้อ 2)
+- ปีศาจต้องไม่เป็น rule-based → particle filter + (ภายหลัง) POMCP + opponent model
+- ปีศาจตาบอดแต่หูดี วิ่งไวขึ้น ฉลาดขึ้น / ผู้เล่นมุมมองบุรุษที่ 1 + ไฟฉาย (2026-10-08)
+- ใช้ asset ฟรีจาก Creator Store ได้ ถ้าตรวจความปลอดภัยแล้ว หรือทำเองแต่ต้องดูดี ไม่เหลี่ยมแบบ AI ทำ
+
+## งานถัดไป (เรียงตามลำดับ)
+1. ทำ M1 ให้เสร็จและเล่นทดสอบ (ดูเงื่อนไขเสร็จใน docs/playable-v1.md)
+2. M2: HouseGraph รองรับ 4×4 + ค้นหา/ตรวจ asset จาก Creator Store + ตู้มีบานประตู
+3. M3: ร้านค้า, ภารกิจหลากหลาย, ฉากจบคืน 7, เมนู, DataStore
+4. M4: POMCP, telemetry backend, ชุดทดลอง, playtest 15–30 คน

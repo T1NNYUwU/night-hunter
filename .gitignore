@@ -1,0 +1,11 @@
+# Roblox / Rojo build outputs and Studio backups
+*.rbxl
+*.rbxlx
+*.rbxm
+*.rbxmx
+*.lock
+sourcemap.json
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
