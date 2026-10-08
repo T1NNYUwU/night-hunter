@@ -251,6 +251,56 @@ player:GetAttributeChangedSignal("Downed"):Connect(function()
 	wasDown = down
 end)
 
+-- The hunter's limbs are animated here, on each client (Roblox will not play animations
+-- this game does not own, and posing joints locally costs the server nothing). Small angles
+-- on the rig's Motor6D joints: legs and arms swing with its real speed, the body sways and
+-- breathes, and the head twitches while it stands still listening.
+local hunterAnim = { phase = 0, lastPos = nil, speed = 0, twitch = CFrame.new(), nextTwitch = 0 }
+
+local function animateHunter(model: Model, dt: number)
+	local root = model.PrimaryPart
+	if not root then
+		return
+	end
+	local pos = root.Position
+	if hunterAnim.lastPos and dt > 0 then
+		local v = (Vector3.new(pos.X, 0, pos.Z) - Vector3.new(hunterAnim.lastPos.X, 0, hunterAnim.lastPos.Z)).Magnitude / dt
+		hunterAnim.speed += (v - hunterAnim.speed) * math.min(1, dt * 8)
+	end
+	hunterAnim.lastPos = pos
+	local gait = math.clamp(hunterAnim.speed / 12, 0, 1.4)
+	hunterAnim.phase += dt * (2 + hunterAnim.speed * 0.45)
+	local s = math.sin(hunterAnim.phase)
+	local breathe = math.sin(os.clock() * 1.6) * 0.04
+
+	local mode = state:GetAttribute("HunterMode")
+	if (mode == "listen" or mode == "search-closet") and os.clock() > hunterAnim.nextTwitch then
+		hunterAnim.nextTwitch = os.clock() + math.random() * 0.5 + 0.15
+		hunterAnim.twitch = CFrame.Angles(math.rad(math.random(-18, 18)), math.rad(math.random(-35, 35)), math.rad(math.random(-15, 15)))
+	elseif mode ~= "listen" and mode ~= "search-closet" then
+		hunterAnim.twitch = hunterAnim.twitch:Lerp(CFrame.new(), math.min(1, dt * 6))
+	end
+
+	for _, joint in model:GetDescendants() do
+		if joint:IsA("Motor6D") then
+			local name = joint.Name
+			if name == "Torso" then
+				joint.Transform = CFrame.new(0, -math.abs(s) * 0.25 * gait + breathe, 0) * CFrame.Angles(0, 0, s * 0.06 * gait)
+			elseif name == "Head" then
+				joint.Transform = hunterAnim.twitch
+			elseif name == "Left Leg" then
+				joint.Transform = CFrame.Angles(s * 0.45 * gait, 0, 0)
+			elseif name == "Right Leg" then
+				joint.Transform = CFrame.Angles(-s * 0.45 * gait, 0, 0)
+			elseif name == "Left Forearm" then
+				joint.Transform = CFrame.Angles(-s * 0.3 * gait + breathe, 0, 0)
+			elseif name == "Right Forearm" then
+				joint.Transform = CFrame.Angles(s * 0.3 * gait + breathe, 0, 0)
+			end
+		end
+	end
+end
+
 local function hunterPart(): BasePart?
 	local house = Workspace:FindFirstChild("NightHunterHouse")
 	local model = house and house:FindFirstChild("Hunter")
@@ -258,8 +308,13 @@ local function hunterPart(): BasePart?
 end
 
 -- Runs right after Roblox's camera script, so the shake and the beam use this frame's camera.
-RunService:BindToRenderStep("NightHunterView", Enum.RenderPriority.Camera.Value + 1, function()
+RunService:BindToRenderStep("NightHunterView", Enum.RenderPriority.Camera.Value + 1, function(dt)
 	local camera = Workspace.CurrentCamera
+	local houseFolder = Workspace:FindFirstChild("NightHunterHouse")
+	local hunterModel = houseFolder and houseFolder:FindFirstChild("Hunter")
+	if hunterModel then
+		animateHunter(hunterModel, dt)
+	end
 	local character = player.Character
 	local humanoid = character and character:FindFirstChildOfClass("Humanoid")
 

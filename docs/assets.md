@@ -16,6 +16,7 @@ HouseDecor จะใช้กล่องแทนให้อัตโนมั
 | Candelabra | 13543144177 | "Candelabra" / zzz_1551 | ไม่มี | ย่อให้สูง 3.2 studs แล้วเติมแสงเทียนเอง |
 | Chandelier | 5672333071 | "Chandelier with Burning Candles" / senji_nsic | ไม่มี | 86 mesh ใช้ 3 ห้อง ย่อ 0.6 |
 | Bathtub | 12828025147 | "Bathtub" / Zipperishappy | ไม่มี | ของเดิมยาว 186 studs ย่อเหลือ 7 |
+| HunterRig | 14055842958 | "Blind Monster 1, morph" (ตัวละคร "VoidReaver2") / ExterNorer_Roblox | 4 ตัว: แท่นเปลี่ยนร่าง, ปุ่ม UI 2 ตัว, ตัวเล่นอนิเมชัน — ไม่มี pattern อันตราย → ลบทั้งหมด พร้อม Humanoid, อนิเมชัน, เสียง, GUI | rig R6 สัตว์ประหลาดไร้ตา ย่อ 0.85 (สูง ~7.9 ลอดวงกบประตูได้), จุดอ้างอิงที่เท้า, ราก anchored ขาแขนห้อยด้วย Motor6D, ท่าทางทำเองฝั่ง client เพราะอนิเมชันที่แถมมาไม่ใช่ของเกมนี้ (Roblox ไม่ให้เล่น) |
 | Wardrobe | 111630714523203 | "Wooden Wardrobe closet storage" / Skycho4196 | `qPerfectionWeld` (Quenty, สคริปต์เชื่อมชิ้นส่วนที่ใช้กันแพร่หลาย ไม่มี pattern อันตราย) → ลบ | ประตูอยู่ฝั่ง +Z จึงหมุน 180° (`ASSET_YAW`), ขยาย 1.3 เท่า, ปิดการชน ให้ผู้เล่นเข้าไปซ่อนได้ |
 
 ## ไม่ผ่าน / ไม่ใช้

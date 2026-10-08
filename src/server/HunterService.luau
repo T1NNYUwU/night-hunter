@@ -50,8 +50,44 @@ local function getRoot(player: Player): BasePart?
 	return character:FindFirstChild("HumanoidRootPart")
 end
 
--- A tall, thin, eyeless figure with long arms. Blocky until M2 swaps in a proper model.
+-- The hunter's body: the audited "HunterRig" from ServerStorage.AssetLibrary (an eyeless,
+-- hunched creature, see docs/assets.md). Its root is anchored and moved with PivotTo; the
+-- limbs hang on Motor6D joints so clients can animate them. If the library is missing, a
+-- blocky stand-in is built instead. Either way the model's pivot is at its feet.
 local function buildHunterModel(parent)
+	local library = game:GetService("ServerStorage"):FindFirstChild("AssetLibrary")
+	local template = library and library:FindFirstChild("HunterRig")
+	local model
+	if template then
+		model = template:Clone()
+		model.Name = "Hunter"
+	else
+		model = HunterService._blockyModel()
+	end
+	local root = model.PrimaryPart
+
+	-- 3D sounds on the body: players hear it coming before they see it.
+	local steps = Instance.new("Sound")
+	steps.Name = "Steps"
+	steps.SoundId = Sounds.hunterSteps
+	steps.Looped = true
+	steps.Volume = 1.2
+	steps.RollOffMinDistance = 8
+	steps.RollOffMaxDistance = 70
+	steps.Parent = root
+	local growl = Instance.new("Sound")
+	growl.Name = "Growl"
+	growl.SoundId = Sounds.hunterGrowl
+	growl.Volume = 1.5
+	growl.RollOffMinDistance = 10
+	growl.RollOffMaxDistance = 90
+	growl.Parent = root
+
+	model.Parent = parent
+	return model
+end
+
+function HunterService._blockyModel()
 	local model = Instance.new("Model")
 	model.Name = "Hunter"
 	local skin = Color3.fromRGB(205, 200, 190)
@@ -80,25 +116,7 @@ local function buildHunterModel(parent)
 	piece("Head", Vector3.new(1.5, 1.9, 1.4), Vector3.new(0, 8.5, 0), skin, Enum.Material.SmoothPlastic)
 	piece("Mouth", Vector3.new(0.9, 0.12, 0.1), Vector3.new(0, 8.1, -0.72), Color3.fromRGB(40, 0, 0), Enum.Material.SmoothPlastic)
 	model.PrimaryPart = body
-
-	-- 3D sounds on the body: players hear it coming before they see it.
-	local steps = Instance.new("Sound")
-	steps.Name = "Steps"
-	steps.SoundId = Sounds.hunterSteps
-	steps.Looped = true
-	steps.Volume = 1.2
-	steps.RollOffMinDistance = 8
-	steps.RollOffMaxDistance = 70
-	steps.Parent = body
-	local growl = Instance.new("Sound")
-	growl.Name = "Growl"
-	growl.SoundId = Sounds.hunterGrowl
-	growl.Volume = 1.5
-	growl.RollOffMinDistance = 10
-	growl.RollOffMaxDistance = 90
-	growl.Parent = body
-
-	model.Parent = parent
+	body.PivotOffset = CFrame.new(0, -5.2, 0) -- pivot at the feet
 	return model
 end
 
@@ -129,8 +147,8 @@ function HunterService.start(house, hooks)
 	local lastDecoy = {}
 
 	local model = buildHunterModel(house.root)
-	local stepsSound = model.Body.Steps
-	local growlSound = model.Body.Growl
+	local stepsSound = model.PrimaryPart.Steps
+	local growlSound = model.PrimaryPart.Growl
 	local lastGrowl = 0
 	local hunter = {
 		node = HUNTER_START,
@@ -160,8 +178,8 @@ function HunterService.start(house, hooks)
 		hunter.dwell = 0
 		hunter.mode = "asleep"
 		hunter.waypoint = nil
-		if model and model:FindFirstChild("Body") then
-			model.Body.Steps:Stop()
+		if model and model.PrimaryPart and model.PrimaryPart:FindFirstChild("Steps") then
+			model.PrimaryPart.Steps:Stop()
 		end
 		model:PivotTo(CFrame.lookAt(hunter.pos, hunter.pos + hunter.facing))
 	end
