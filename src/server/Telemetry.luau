@@ -154,7 +154,7 @@ function Telemetry.start(status: Instance?)
 		end
 	end
 
-	-- kind: "down" | "revive" | "objective" | "item" | "escape"; data: small table of numbers/strings
+	-- kind: "down" | "revive" | "objective" | "item" | "escape" | "hide" | "unhide" | "gasp" | "search"; data: small table of numbers/strings
 	function tel.event(kind: string, player: Player?, data)
 		if not current then
 			return

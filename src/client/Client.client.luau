@@ -20,6 +20,7 @@ local Sounds = require(Shared:WaitForChild("Sounds"))
 local Items = require(Shared:WaitForChild("Items"))
 local TitleScreen = require(script.Parent:WaitForChild("TitleScreen"))
 local ShopPanel = require(script.Parent:WaitForChild("ShopPanel"))
+local HideView = require(script.Parent:WaitForChild("HideView"))
 local remotes = ReplicatedStorage:WaitForChild("NightHunterRemotes")
 local state = Workspace:WaitForChild("NightHunterState")
 
@@ -108,6 +109,7 @@ gui.IgnoreGuiInset = true
 gui.Parent = player:WaitForChild("PlayerGui")
 
 local shop = ShopPanel.mount(gui, state, player, remotes)
+local hideView = HideView.mount(gui, player, remotes)
 local title = TitleScreen.mount(gui, state, player, function()
 	remotes:WaitForChild("Ready"):FireServer()
 end)
@@ -357,9 +359,10 @@ RunService:BindToRenderStep("NightHunterView", Enum.RenderPriority.Camera.Value 
 	end
 	local character = player.Character
 	local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+	local hiding = hideView.update(dt) -- hidden: the camera peeks out of the spot
 
 	-- Crouch lowers the eyes.
-	if humanoid then
+	if humanoid and not hiding then
 		local targetY = if crouching and not sprintHeld then -1.6 else 0
 		local y = humanoid.CameraOffset.Y
 		humanoid.CameraOffset = Vector3.new(0, y + (targetY - y) * 0.2, 0)
@@ -368,7 +371,7 @@ RunService:BindToRenderStep("NightHunterView", Enum.RenderPriority.Camera.Value 
 	-- Viewmodel + local beam follow the camera; the real tool is hidden in our own view.
 	local lightOn = player:GetAttribute("Flashlight") == true
 	local tool = character and character:FindFirstChild("Flashlight")
-	local holding = tool ~= nil and not player:GetAttribute("Downed")
+	local holding = tool ~= nil and not player:GetAttribute("Downed") and not hiding
 	local bob = if humanoid and humanoid.MoveDirection.Magnitude > 0.1 then math.sin(os.clock() * 9) * 0.03 else 0
 	local hand = camera.CFrame * VIEW_OFFSET * CFrame.new(0, bob, 0)
 	local forward = CFrame.Angles(0, math.rad(90), 0) -- cylinder X axis → camera forward
@@ -399,6 +402,7 @@ RunService:BindToRenderStep("NightHunterView", Enum.RenderPriority.Camera.Value 
 		local d = (part.Position - character.PrimaryPart.Position).Magnitude
 		closeness = math.clamp((26 - d) / 20, 0, 1)
 	end
+	closeness = math.max(closeness, hideView.suspicion()) -- hidden: your heart follows its suspicion
 	local pulse = 0.5 + 0.5 * math.sin(os.clock() * (4 + closeness * 8))
 	local night = state:GetAttribute("Phase") == "Night"
 	ambience.Volume += ((if night then 0.45 else 0.12) - ambience.Volume) * 0.02

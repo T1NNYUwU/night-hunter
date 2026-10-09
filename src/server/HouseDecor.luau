@@ -17,7 +17,7 @@ local ServerStorage = game:GetService("ServerStorage")
 local HouseGraph = require(game:GetService("ReplicatedStorage"):WaitForChild("NightHunter"):WaitForChild("HouseGraph"))
 
 local HouseDecor = {}
-HouseDecor.VERSION = 4 -- bump when decor changes, so saved houses get rebuilt
+HouseDecor.VERSION = 5 -- bump when decor changes, so saved houses get rebuilt
 
 local FACE = 11.5 -- inner wall face
 -- Library models are expected to face -Z. Measured exceptions (docs/assets.md):
@@ -44,6 +44,8 @@ local FALLBACK_SIZE = { -- used only when AssetLibrary is missing
 	Furniture_Chair = Vector3.new(2.9, 4.9, 3),
 	Furniture_Drawer = Vector3.new(6.6, 3.6, 3.1),
 	Wardrobe = Vector3.new(5.1, 7.4, 2.1),
+	HideWardrobe = Vector3.new(5.6, 7.9, 2.6),
+	HideTable = Vector3.new(6.4, 3.1, 6.4),
 	Bathtub = Vector3.new(7, 2.6, 3.8),
 	Chandelier = Vector3.new(7.6, 8.7, 7.9),
 	Candelabra = Vector3.new(2, 3.2, 0.8),
@@ -265,16 +267,16 @@ end
 ROOM_PROPS[3] = function(m, at) -- Library. Doors W,E · solid S wall · wardrobe S (east side)
 	againstWall(m, at, "Furniture_Shelf", "S", -5)
 	againstWall(m, at, "Furniture_Shelf", "N", 6, 0.9)
-	prop(m, at, "Furniture_Table", -6, 0, -6, 90)
-	prop(m, at, "Furniture_Chair", -6, 0, -9.6, 180)
-	candelabra(m, at, -6, sizeOf("Furniture_Table").Y, -6, 0)
-	rug(m, at, -5.5, -5, 8, 6, CLOTH_GREEN)
+	-- reading table = hiding spot (hideSpots)
+	prop(m, at, "Furniture_Chair", -6, 0, -10.1, 180)
+	candelabra(m, at, -6, sizeOf("HideTable").Y, -6, 0)
+	rug(m, at, -5.5, -5, 9, 8, CLOTH_GREEN)
 end
 
 ROOM_PROPS[4] = function(m, at) -- Study. Doors W,S · wardrobe E
-	prop(m, at, "Furniture_Table", -6, 0, -(FACE - sizeOf("Furniture_Table").X / 2 - 0.05), 90)
-	prop(m, at, "Furniture_Chair", -6, 0, -5.9, 180)
-	candelabra(m, at, -4, sizeOf("Furniture_Table").Y, -9.6, 180)
+	-- desk = hiding spot (hideSpots)
+	prop(m, at, "Furniture_Chair", -5.5, 0, -4.2, 180)
+	candelabra(m, at, -5.5, sizeOf("HideTable").Y, -8, 180)
 	againstWall(m, at, "Furniture_Shelf", "N", 6, 0.8)
 	againstWall(m, at, "Furniture_Cabinet", "W", -7)
 	paintingOn(m, at, "W", 7, 3, 4, Color3.fromRGB(70, 50, 40))
@@ -324,17 +326,16 @@ ROOM_PROPS[9] = function(m, at) -- Kitchen. Doors E,S · solid N wall · outer W
 	box(m, "Sink", Vector3.new(2.2, 0.2, 1.6), at(3, 3.46, -10.2), METAL, Enum.Material.Metal, false)
 	box(m, "Stove", Vector3.new(2.6, 3.2, 2.4), at(-8, 1.6, -10.3), METAL, Enum.Material.Metal)
 	box(m, "Fridge", Vector3.new(3, 7, 2.6), at(10, 3.5, -10), Color3.fromRGB(200, 205, 200), Enum.Material.SmoothPlastic)
-	prop(m, at, "Furniture_Table", 7, 0, 6, 0)
-	prop(m, at, "Furniture_Chair", 4, 0, 6, -90)
-	prop(m, at, "Furniture_Chair", 10, 0, 6, 90)
+	-- kitchen table = hiding spot (hideSpots)
+	prop(m, at, "Furniture_Chair", 3.2, 0, 6, -90)
+	prop(m, at, "Furniture_Chair", 10.8, 0, 6, 90)
 end
 
 ROOM_PROPS[10] = function(m, at) -- Dining room. Doors W,E,N,S · wardrobe S (east side)
-	prop(m, at, "Furniture_Table", -6.5, 0, -6.5, 0)
-	prop(m, at, "Furniture_Chair", -9.5, 0, -6.5, -90)
-	prop(m, at, "Furniture_Chair", -3.5, 0, -6.5, 90)
-	prop(m, at, "Furniture_Chair", -6.5, 0, -10.3, 180)
-	candelabra(m, at, -6.5, sizeOf("Furniture_Table").Y, -6.5, 0)
+	-- dining table = hiding spot (hideSpots)
+	prop(m, at, "Furniture_Chair", -10, 0, -6.5, -90)
+	prop(m, at, "Furniture_Chair", -2.7, 0, -6.5, 90)
+	candelabra(m, at, -6.5, sizeOf("HideTable").Y, -6.5, 0)
 	againstWall(m, at, "Furniture_Cabinet", "E", -7)
 	paintingOn(m, at, "W", 7, 3, 3, Color3.fromRGB(70, 60, 50))
 end
@@ -471,23 +472,50 @@ local function ceilingLight(m, at, room)
 	light(bulb, WARM_LIGHT, 18, 0.7, FLICKER_ROOMS[room])
 end
 
--- Hiding wardrobes: one per hide node, opening into the room, walk-through (no collision).
-local function wardrobes(decor, graph, origin)
+-- Hiding spots: one per hide node. A wardrobe with doors (opening into the room) or a table
+-- with a long cloth. Each gets marker parts HideService uses:
+--   PromptPart  where the "Hide" prompt sits     Inside  where the hidden player is kept
+--   Eye         the camera while hidden (looking out through the door gap / under the cloth)
+-- Doors (DoorL / DoorR, pivot = hinge) and the cloth are animated by HideService.
+HouseDecor.HIDE_TAG = "NightHunterHideSpot"
+
+local function marker(parent, name, cf)
+	local p = box(parent, name, Vector3.new(0.4, 0.4, 0.4), cf, Color3.new(1, 1, 1), Enum.Material.SmoothPlastic, false)
+	p.Transparency = 1
+	p.CanQuery = false
+	p.CanTouch = false
+	return p
+end
+
+local function hideSpots(decor, graph, origin)
 	for _, node in graph.nodes do
 		if node.kind == "hide" then
 			local at = placer(origin + HouseGraph.roomCenter(node.room))
 			local rel = node.pos - HouseGraph.roomCenter(node.room)
-			local depth = sizeOf("Wardrobe").Z * 1.3
-			local side = node.wall or "N"
-			local x = if side == "W" then -(FACE - depth / 2) elseif side == "E" then FACE - depth / 2 else rel.X
-			local z = if side == "N" then -(FACE - depth / 2) elseif side == "S" then FACE - depth / 2 else rel.Z
-			local w = prop(decor, at, "Wardrobe", x, 0, z, WALL_YAW[side], 1.3)
-			w.Name = "HideWardrobe" .. node.id
-			for _, d in w:GetDescendants() do
-				if d:IsA("BasePart") then
-					d.CanCollide = false -- players step inside to hide
-				end
+			local spot
+			if node.spot == "table" then
+				spot = prop(decor, at, "HideTable", rel.X, 0, rel.Z, 0)
+				local pivot = spot:GetPivot()
+				marker(spot, "PromptPart", pivot * CFrame.new(0, 2, 0))
+				marker(spot, "Inside", pivot * CFrame.new(0, 1, 0))
+				-- Low, at the cloth's edge, looking out under it.
+				marker(spot, "Eye", pivot * CFrame.new(0, 0.55, -sizeOf("HideTable").Z / 2 - 0.15))
+			else
+				local depth = sizeOf("HideWardrobe").Z
+				local side = node.wall or "N"
+				local x = if side == "W" then -(FACE - depth / 2 - 0.05) elseif side == "E" then FACE - depth / 2 - 0.05 else rel.X
+				local z = if side == "N" then -(FACE - depth / 2 - 0.05) elseif side == "S" then FACE - depth / 2 - 0.05 else rel.Z
+				spot = prop(decor, at, "HideWardrobe", x, 0, z, WALL_YAW[side])
+				local pivot = spot:GetPivot()
+				marker(spot, "PromptPart", pivot * CFrame.new(0, 3.5, -depth / 2 - 0.6))
+				marker(spot, "Inside", pivot * CFrame.new(0, 3, 0))
+				-- At the gap between the doors, eye height, looking into the room.
+				marker(spot, "Eye", pivot * CFrame.new(0, 5.2, -depth / 2 - 0.12))
 			end
+			spot.Name = "HideSpot" .. node.id
+			spot:SetAttribute("Node", node.id)
+			spot:SetAttribute("Kind", node.spot)
+			CollectionService:AddTag(spot, HouseDecor.HIDE_TAG)
 		end
 	end
 end
@@ -512,7 +540,7 @@ function HouseDecor.decorate(root: Instance, graph, origin: Vector3)
 		ROOM_PROPS[room](m, at)
 		m.Parent = decor
 	end
-	wardrobes(decor, graph, origin)
+	hideSpots(decor, graph, origin)
 	decor.Parent = root
 end
 

@@ -15,6 +15,7 @@
 - เสร็จ (2026-10-08): โมเดลปีศาจใหม่ (`AssetLibrary.HunterRig` + ท่าทางขยับข้อต่อฝั่ง client)
 - เสร็จ (2026-10-08): **M3** หน้าเริ่มเกม (PLAY / วิธีเล่น / สถิติ), ร้านค้าตอนกลางวัน + ไอเทม 3 อย่าง, เหรียญ, ภารกิจ 3 แบบ (ลัง / ฟิวส์ / กุญแจ + หนีออกประตูหน้า คืน 7), บันทึกความคืบหน้าด้วย DataStore
 - เสร็จ (2026-10-08): **M4 (ส่วนโค้ด)** POMCP, opponent model, telemetry, backend (`backend/`), ชุดทดลองในตัวจำลอง — ผลอยู่ใน [docs/m4-research.md](docs/m4-research.md)
+- เสร็จ (2026-10-09): **ระบบที่ซ่อนใหม่** ตู้ประตูเปิดปิดได้ + โต๊ะผ้าคลุม, แอบมอง, กลั้นหายใจ, เสียงเข้าที่ซ่อนบอกตำแหน่ง, ปีศาจค้นเมื่อสงสัย — [docs/hiding.md](docs/hiding.md); ไฟล์ deploy Render: `render.yaml` + [docs/deploy.md](docs/deploy.md)
 - ยังไม่ทำ: deploy backend + เปิด HttpService + playtest กับคนจริง ([docs/playtest.md](docs/playtest.md))
 
 ## โครงสร้างไฟล์ (Rojo project: `default.project.json`)
@@ -44,6 +45,8 @@
 | `src/client/Client.client.luau` | StarterPlayerScripts.NightHunter | มุมมองบุรุษที่ 1, ปุ่มควบคุม, HUD, jumpscare, ขอบจอแดง, ลำแสงไฟฉายของตัวเอง, ไฟกะพริบ |
 | `src/client/TitleScreen.luau` | 〃 | หน้าเริ่มเกม: PLAY, วิธีเล่น, สถิติที่บันทึกไว้ |
 | `src/client/ShopPanel.luau` | 〃 | ร้านค้าตอนกลางวัน (ปุ่ม V / SHOP) |
+| `src/client/HideView.luau` | 〃 | มุมมองตอนซ่อน (ช่องประตู/ใต้ผ้า), แถบหายใจ + ความสงสัย, ปุ่ม LEAVE/BREATH |
+| `src/server/HideService.luau` | ServerScriptService.NightHunter | ที่ซ่อน: เข้า/ออก, เสียงตามความเร็ว, หายใจ/หอบ, เปิดตู้ตอนปีศาจค้น |
 | `plan.md` | — | แผนทั้งโปรเจค, ผลสปายก์, ปัญหาที่เคยเจอ |
 | `docs/*.md` | — | บันทึกแต่ละช่วง + ผลทดลอง |
 
@@ -77,6 +80,8 @@
 - ทดสอบ ProximityPrompt ด้วยสคริปต์: ในมุมมองบุรุษที่ 1 ตัวละครหันตามกล้อง ต้องหันกล้อง (`Camera.CFrame`) ไปที่ของก่อน prompt ถึงจะขึ้น
 - DataStore ใน Studio จะเตือน 1 ครั้งถ้ายังไม่เปิด "Enable Studio Access to API Services" (เกมยังเล่นได้)
 - ดู telemetry คืนล่าสุด: `workspace.NightHunterState:SetAttribute("DebugDumpTelemetry", os.clock())` แล้วอ่าน attribute `DebugTelemetryJson`
+- ทดสอบที่ซ่อน (Studio): `NightHunterState:SetAttribute("DebugHideSlam", <node>)` = ปีศาจได้ยินเสียงกระแทกจากที่ซ่อนนั้น; attribute `DebugRecentSpeed` บนผู้เล่น = ความเร็วที่เซิร์ฟเวอร์จำไว้
+- ทดสอบด้วย MCP: `execute_luau` จะรีเซ็ตกล้องเป็น Custom หลังรัน (HideView ตั้งกลับให้เอง) และ `Humanoid:Move` จากสคริปต์ทดสอบโดน ControlModule ทับ — ใช้ `MoveTo` ฝั่ง server หรือ attribute debug แทน
 - ปุ่ม M ใน Studio: สลับสมอง rule → belief → pomcp → pomcp+model
 - ตัวจำลองเทียบสมอง (command bar): `print(require(game.ReplicatedStorage.NightHunter:Clone().Sim).report({ episodes = 100, brains = {"rule","belief","pomcp"}, lair = "random", wakeTicks = 16, yield = true }))`
 - Telemetry ไม่ได้ตั้ง URL จะเตือน 1 ครั้ง "Telemetry offline (game unaffected)" — ปกติ

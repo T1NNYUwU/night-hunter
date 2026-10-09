@@ -4,7 +4,7 @@
 -- Positions are local to the house origin. Reasoning on ~30 nodes instead of every stud is
 -- what keeps the AI cheap enough to run every 0.5 s.
 
-export type Node = { id: number, kind: string, room: number, pos: Vector3, wall: string? }
+export type Node = { id: number, kind: string, room: number, pos: Vector3, wall: string?, spot: string? }
 export type Graph = {
 	nodes: { Node },
 	neighbors: { { number } },
@@ -26,9 +26,11 @@ local DOORS = {
 	{ 1, 5 }, { 2, 6 }, { 4, 8 }, { 6, 10 }, { 7, 11 }, { 8, 12 }, { 9, 13 }, { 10, 14 }, { 11, 15 }, { 12, 16 },
 }
 
--- Hiding wardrobes: room, position in the room, and the wall they stand against (their
--- opening faces into the room). Kept to corners so they never block a door.
-local WARDROBES = {
+-- Hiding spots. Wardrobes: room, position in the room, and the wall they stand against
+-- (their doors face into the room), kept to corners so they never block a door. Tables with a
+-- long cloth (appended after the wardrobes so the wardrobe node ids 17-32 never change):
+-- the player crouches underneath and peeks out under the cloth.
+local HIDES = {
 	{ room = 1, x = 8, z = -10, wall = "N" },
 	{ room = 2, x = -8, z = -10, wall = "N" },
 	{ room = 3, x = 8, z = 10, wall = "S" },
@@ -45,6 +47,10 @@ local WARDROBES = {
 	{ room = 14, x = 8, z = 10, wall = "S" },
 	{ room = 15, x = -8, z = 10, wall = "S" },
 	{ room = 16, x = 10, z = -8, wall = "E" },
+	{ room = 3, x = -6, z = -6, spot = "table" }, -- Library reading table
+	{ room = 4, x = -5.5, z = -8, spot = "table" }, -- Study desk
+	{ room = 9, x = 7, z = 6, spot = "table" }, -- Kitchen table
+	{ room = 10, x = -6.5, z = -6.5, spot = "table" }, -- Dining table
 }
 
 local HouseGraph = {}
@@ -78,9 +84,16 @@ function HouseGraph.build(): Graph
 	for _, door in DOORS do
 		link(door[1], door[2])
 	end
-	for i, w in WARDROBES do
+	for i, w in HIDES do
 		local id = roomCount + i
-		nodes[id] = { id = id, kind = "hide", room = w.room, pos = HouseGraph.roomCenter(w.room) + Vector3.new(w.x, 0, w.z), wall = w.wall }
+		nodes[id] = {
+			id = id,
+			kind = "hide",
+			room = w.room,
+			pos = HouseGraph.roomCenter(w.room) + Vector3.new(w.x, 0, w.z),
+			wall = w.wall,
+			spot = w.spot or "wardrobe",
+		}
 		neighbors[id] = {}
 		link(id, w.room)
 		table.insert(roomNodes[w.room], id)

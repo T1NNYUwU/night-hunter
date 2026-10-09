@@ -15,6 +15,7 @@ local LISTEN_TICKS = 2 -- the hunter stops to listen when it reaches a room
 local SEARCH_TICKS = 2 -- ...and takes a second to open a closet
 local CATCH_BUMP = 0.3 -- walked into a room with someone in it (blind, so it may miss)
 local CATCH_CHARGE = 0.8 -- rushed at a sound made in this very room
+local BREATH_TICKS = 12 -- a hidden bot holds its breath 6 s when the hunter is in its room
 local SPAWN_ROOM, HUNTER_START = HouseGraph.SPAWN_ROOM, HouseGraph.DEFAULT_LAIR
 
 local Sim = {}
@@ -151,6 +152,22 @@ local function actPlayer(graph, rng: Random, p, hunter, now: number, sounds, wor
 		return
 	end
 
+	-- Hidden with the hunter in the room: hold the breath; out of air = gasp, then breathe.
+	if hiding then
+		if sameRoom and p.breath > 0 then
+			p.breath -= 1 / BREATH_TICKS
+			if p.breath <= 0 then
+				p.breath = 0
+				table.insert(sounds, { room = myNode.room, node = p.node, loudness = Acoustics.LOUDNESS.gasp })
+			end
+		else
+			if sameRoom then
+				table.insert(sounds, { room = myNode.room, node = p.node, loudness = Acoustics.LOUDNESS.breath })
+			end
+			p.breath = math.min(1, p.breath + 1 / 8)
+		end
+	end
+
 	if not p.nextNode then
 		p.stance = "walk"
 		if hiding then
@@ -191,7 +208,15 @@ local function actPlayer(graph, rng: Random, p, hunter, now: number, sounds, wor
 	end
 
 	if p.nextNode and graph.nodes[p.nextNode].kind == "room" then
-		table.insert(sounds, { room = myNode.room, loudness = Acoustics.LOUDNESS[p.stance] })
+		local loud = if hiding then Acoustics.LOUDNESS.unhide else Acoustics.LOUDNESS[p.stance]
+		table.insert(sounds, { room = myNode.room, node = if hiding then p.node else nil, loudness = loud })
+	elseif p.nextNode and graph.nodes[p.nextNode].kind == "hide" and not p.entering then
+		-- Getting into a spot: as loud as the stance it was entered at (and it gives the spot away).
+		p.entering = true
+		table.insert(sounds, { room = myNode.room, node = p.nextNode, loudness = Acoustics.LOUDNESS[Acoustics.hideEntry(p.stance)] })
+	end
+	if not p.nextNode then
+		p.entering = false
 	end
 end
 
@@ -227,6 +252,8 @@ function Sim.runEpisode(opts)
 		p.stance = "walk"
 		p.hideUntil = 0
 		p.decoyReady = 0
+		p.breath = 1
+		p.entering = false
 		p.caught = false
 		table.insert(players, p)
 	end
@@ -322,10 +349,12 @@ function Sim.runEpisode(opts)
 		for _, sound in sounds do
 			local hops = graph.dist[hunterRoom][sound.room]
 			if rng:NextNumber() < Acoustics.hearChance(sound.loudness, hops, hearing) then
-				table.insert(obs.noises, sound.room)
+				-- From the same room, a hiding sound gives away the exact spot (as in the game).
+				local where = if hops == 0 and sound.node then sound.node else sound.room
+				table.insert(obs.noises, where)
 				heardHere = heardHere or hops == 0
 				if hops < closestHops then
-					closest, closestHops = sound.room, hops
+					closest, closestHops = where, hops
 				end
 			end
 		end
@@ -342,7 +371,9 @@ function Sim.runEpisode(opts)
 				moveToward(graph, hunter, closest, chargeSpeed)
 			elseif not hunter.nextNode then
 				hunter.charging = false
-				moveToward(graph, hunter, target, patrolSpeed)
+				-- Search reflex (as in the game): open a spot here it is sure enough about.
+				local spot = HunterBrain.suspiciousSpot(brain, graph, hunterRoom)
+				moveToward(graph, hunter, spot or target, patrolSpeed)
 			end
 		end
 		msSum += brain.lastMs

@@ -13,6 +13,13 @@
 -- hooks.isDowned(player) -> bool   downed players make no sound and cannot be caught again
 -- hooks.onCaught(player)
 -- hooks.onTick(sample)  every 0.5 s: { hunterRoom, nodes = { [Player] = node or 0 } } (telemetry)
+-- hooks.isHidden(player) -> bool   hidden players cannot be caught by touch, only by searching
+-- hooks.searchSpot(node) -> { Player }   open a hiding spot; returns who was inside (HideService)
+--
+-- Searching hiding spots: the hunter opens a spot when (a) it heard someone get into THAT
+-- spot from the same room (it charges, then opens it), or (b) its belief that a player is in
+-- a spot of the room it stands in reaches HunterBrain.SEARCH_THRESHOLD ("suspicious enough"), or (c) the
+-- brain sends it there.
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -245,6 +252,8 @@ function HunterService.start(house, hooks)
 		end
 	end
 
+	local suspiciousSpot -- defined below (search reflex)
+
 	local function listen()
 		local room = currentRoom()
 		local obs = { hunterNode = hunter.node, players = {}, noises = {}, quiet = {}, checked = hunter.checked }
@@ -278,7 +287,8 @@ function HunterService.start(house, hooks)
 		for _, s in sounds do
 			local hops = graph.dist[room][s.room]
 			if rng:NextNumber() < Acoustics.hearChance(s.loudness, hops, hearScale) then
-				table.insert(obs.noises, s.room)
+				-- From the same room, a hiding sound gives away the exact spot.
+				table.insert(obs.noises, if hops == 0 and s.node then s.node else s.room)
 				heardHere = heardHere or hops == 0
 				if hops < bestHops or (hops == bestHops and best and s.loudness > best.loudness) then
 					best, bestHops = s, hops
@@ -314,16 +324,27 @@ function HunterService.start(house, hooks)
 			if not hunter.charge or hunter.charge.room ~= best.room then
 				hunter.waypoint = nil -- the old waypoint led toward a different room
 			end
-			hunter.charge = { room = best.room, pos = Vector3.new(pos.X, origin.Y, pos.Z), untilTime = os.clock() + CHARGE_MEMORY }
+			hunter.charge = {
+				room = best.room,
+				pos = Vector3.new(pos.X, origin.Y, pos.Z),
+				untilTime = os.clock() + CHARGE_MEMORY,
+				hideNode = if bestHops == 0 then best.node else nil, -- heard WHICH spot: open it next
+			}
 			hunter.dwell = 0
 			hunter.path = nil
 		elseif not hunter.charge and not hunter.path and hunter.dwell <= 0 then
-			hunter.path = target
+			hunter.path = suspiciousSpot(room) or target
 			hunter.waypoint = nil
 		end
 
 		drawBelief()
 		pushState()
+	end
+
+	-- Search reflex: the hiding spot in this room it is most sure someone hides in, if it is sure
+	-- enough. Uses the per-player beliefs (the rule brain has none, so it never does this).
+	suspiciousSpot = function(room: number): number?
+		return HunterBrain.suspiciousSpot(brain, graph, room)
 	end
 
 	local function flat(target: Vector3): Vector3
@@ -366,7 +387,7 @@ function HunterService.start(house, hooks)
 	local function touchCheck()
 		for _, player in Players:GetPlayers() do
 			local root = getRoot(player)
-			if root and not isDowned(player) then
+			if root and not isDowned(player) and not (hooks and hooks.isHidden and hooks.isHidden(player)) then
 				local d = root.Position - hunter.pos
 				if Vector3.new(d.X, 0, d.Z).Magnitude <= CATCH_RADIUS and math.abs(d.Y) < 8 then
 					catchPlayer(player)
@@ -379,8 +400,13 @@ function HunterService.start(house, hooks)
 		if hunter.dwell > 0 then
 			hunter.dwell -= dt
 			if hunter.dwell <= 0 and hunter.dwellIsSearch then
-				-- Closet opened: whoever hides inside is caught; otherwise the brain learns it is empty.
+				-- Spot opened: whoever hides inside is caught; otherwise the brain learns it is empty.
 				hunter.checked[hunter.node] = true
+				if hooks and hooks.searchSpot then
+					for _, player in hooks.searchSpot(hunter.node) do
+						catchPlayer(player)
+					end
+				end
 				for _, player in Players:GetPlayers() do
 					local root = getRoot(player)
 					if root and HouseGraph.nodeAt(graph, root.Position - origin, CLOSET_RADIUS) == hunter.node then
@@ -392,9 +418,15 @@ function HunterService.start(house, hooks)
 			hunter.mode = "charge"
 			local arrived = stepToward(hunter.charge.room, hunter.charge.pos, chargeSpeed, dt)
 			if arrived or os.clock() > hunter.charge.untilTime then
+				local spot = hunter.charge.hideNode
 				hunter.charge = nil
-				hunter.dwell = LISTEN_SECONDS
-				hunter.dwellIsSearch = false
+				if spot then
+					hunter.path = spot -- it heard which spot: rip it open
+					hunter.waypoint = nil
+				else
+					hunter.dwell = LISTEN_SECONDS
+					hunter.dwellIsSearch = false
+				end
 			end
 		elseif hunter.path then
 			hunter.mode = "search"
@@ -552,8 +584,40 @@ function HunterService.start(house, hooks)
 	end
 
 	-- A sound made by the game (crate, revive, flashlight click...). kind = key in Acoustics.LOUDNESS.
-	function handle.emitSound(room: number, position: Vector3?, kind: string)
-		table.insert(pendingSounds, { room = room, pos = position, loudness = Acoustics.LOUDNESS[kind] or 0.5 })
+	-- `node` (optional): the hiding spot the sound came from (heard from the same room, the
+	-- hunter knows exactly which spot).
+	function handle.emitSound(room: number, position: Vector3?, kind: string, node: number?)
+		table.insert(pendingSounds, { room = room, pos = position, loudness = Acoustics.LOUDNESS[kind] or 0.5, node = node })
+	end
+
+	function handle.hunterRoom(): number
+		return currentRoom()
+	end
+
+	function handle.isActive(): boolean
+		return active
+	end
+
+	-- How sure the hunter is that `player` is in spot `node` (0..1): its real belief. 1 while it
+	-- is opening that very spot.
+	function handle.suspicionAt(player: Player, node: number): number
+		if hunter.dwell > 0 and hunter.dwellIsSearch and hunter.node == node then
+			return 1
+		end
+		if hunter.path == node or (hunter.charge and hunter.charge.hideNode == node) then
+			return 0.9
+		end
+		local filter = brain.filters and brain.filters[tostring(player.UserId)]
+		if not filter then
+			return 0
+		end
+		local hits = 0
+		for _, p in filter.particles do
+			if p == node then
+				hits += 1
+			end
+		end
+		return hits / filter.n
 	end
 
 	function handle.playerRevived(player: Player, node: number)

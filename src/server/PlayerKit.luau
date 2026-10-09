@@ -107,7 +107,7 @@ function PlayerKit.start(hooks)
 
 	local function toggleLight(player: Player)
 		local now = os.clock()
-		if now - (lastToggle[player] or 0) < 0.25 or player:GetAttribute("Downed") then
+		if now - (lastToggle[player] or 0) < 0.25 or player:GetAttribute("Downed") or (player:GetAttribute("Hidden") or 0) ~= 0 then
 			return
 		end
 		lastToggle[player] = now
@@ -203,6 +203,10 @@ function PlayerKit.start(hooks)
 	end)
 
 	local kit = {}
+
+	function kit.lightOff(player: Player)
+		setLight(player, false)
+	end
 
 	-- New day: fresh batteries and full stamina for everyone.
 	function kit.recharge()

@@ -14,7 +14,25 @@ Acoustics.LOUDNESS = {
 	decoy = 1.0,
 	revive = 0.6,
 	click = 0.15, -- flashlight switch
+	-- Hiding. Diving into a spot at a run slams it; a walk creaks; sneaking in is almost silent.
+	-- Heard from the SAME room, these tell the hunter WHICH spot (not just which room).
+	hideSlam = 1.0,
+	hideCreak = 0.35,
+	hideSoft = 0.06,
+	unhide = 0.25,
+	breath = 0.12, -- breathing while hidden with the hunter in the room (unless holding breath)
+	gasp = 0.6, -- held the breath too long
 }
+
+-- The entry sound for a player diving into a hiding spot at `stance` (nil = standing still).
+function Acoustics.hideEntry(stance: string?): string
+	if stance == "sprint" then
+		return "hideSlam"
+	elseif stance == "walk" then
+		return "hideCreak"
+	end
+	return "hideSoft"
+end
 
 -- How much of a sound survives per room boundary (index = rooms between the sound and the hunter).
 Acoustics.FALLOFF = { [0] = 1, [1] = 0.7, [2] = 0.35, [3] = 0.12 }

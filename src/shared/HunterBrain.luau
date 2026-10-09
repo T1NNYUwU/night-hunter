@@ -165,6 +165,32 @@ function HunterBrain.newPomcp(graph, rng: Random, startNode: number?, opts)
 	return brain
 end
 
+-- Search reflex shared by the game and the simulator: the hiding spot in `room` that the
+-- hunter is most sure a player hides in, if that belief is at least `threshold`.
+HunterBrain.SEARCH_THRESHOLD = 0.3
+function HunterBrain.suspiciousSpot(brain, graph, room: number, threshold: number?): number?
+	if not brain.filters then
+		return nil -- the rule brain has no beliefs
+	end
+	local best, bestP = nil, threshold or HunterBrain.SEARCH_THRESHOLD
+	for _, node in graph.roomNodes[room] do
+		if graph.nodes[node].kind == "hide" then
+			for _, filter in brain.filters do
+				local hits = 0
+				for _, p in filter.particles do
+					if p == node then
+						hits += 1
+					end
+				end
+				if hits / filter.n >= bestP then
+					best, bestP = node, hits / filter.n
+				end
+			end
+		end
+	end
+	return best
+end
+
 function HunterBrain.newRule(graph, rng: Random)
 	local brain = { kind = "rule", lastMs = 0 }
 	local noiseTarget: number? = nil

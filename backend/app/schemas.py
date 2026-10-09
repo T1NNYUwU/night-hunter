@@ -26,7 +26,7 @@ class Event(BaseModel):
 
     t: float = Field(ge=0)
     tick: int = Field(ge=0)
-    kind: Literal["down", "revive", "objective", "item", "escape"]
+    kind: Literal["down", "revive", "objective", "item", "escape", "hide", "unhide", "gasp", "search"]
     player: str | None = Field(default=None, pattern=r"^p\d{1,2}$")
 
     @model_validator(mode="after")

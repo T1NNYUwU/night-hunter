@@ -30,6 +30,7 @@ local HunterService = require(script.Parent.HunterService)
 local PlayerKit = require(script.Parent.PlayerKit)
 local Economy = require(script.Parent.Economy)
 local Progress = require(script.Parent.Progress)
+local HideService = require(script.Parent.HideService)
 
 local DAY_SECONDS = 30
 local NIGHT_SECONDS = 180
@@ -82,7 +83,14 @@ function NightCycle.start(house)
 	stateFolder.Name = "NightHunterState"
 	stateFolder.Parent = Workspace
 	local telemetry = Telemetry.start(stateFolder)
+	local hide = nil -- HideService, started below (the hunter needs it to search spots)
 	local hunter = HunterService.start(house, {
+		isHidden = function(player)
+			return hide ~= nil and hide.isHidden(player)
+		end,
+		searchSpot = function(node)
+			return if hide then hide.search(node) else {}
+		end,
 		isDowned = function(player)
 			return downed[player] ~= nil
 		end,
@@ -145,6 +153,18 @@ function NightCycle.start(house)
 		end,
 	})
 	Progress.start()
+	hide = HideService.start({
+		house = house,
+		hunter = hunter,
+		kit = kit,
+		telemetry = telemetry,
+		phase = function()
+			return phase
+		end,
+		isDowned = function(player)
+			return downed[player] ~= nil
+		end,
+	})
 
 	local readyRemote = Instance.new("RemoteEvent")
 	readyRemote.Name = "Ready"
@@ -220,6 +240,9 @@ function NightCycle.start(house)
 		local root = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
 		if downed[player] or phase ~= "Night" or not root then
 			return
+		end
+		if hide then
+			hide.release(player) -- normally already pulled out by the search that found them
 		end
 		downsThisNight += 1
 		telemetry.event("down", player, { node = HouseGraph.nodeAt(graph, root.Position - origin, 2.6) or 0 })
@@ -449,6 +472,9 @@ function NightCycle.start(house)
 			revive(player)
 		end
 		hunter.setActive(false)
+		if hide then
+			hide.releaseAll()
+		end
 		kit.recharge()
 		lair = pickLair()
 		hunter.setLair(lair) -- asleep in its nest all day: players can see where it will wake
@@ -489,6 +515,9 @@ function NightCycle.start(house)
 			revive(player)
 		end
 		hunter.setActive(false)
+		if hide then
+			hide.releaseAll()
+		end
 		clearObjectives()
 		sendEveryoneToSpawn()
 		pushState()
@@ -592,6 +621,13 @@ function NightCycle.start(house)
 	-- Studio only (for testing): set DebugJumpToNight = n on NightHunterState to start that
 	-- night's day, or change DebugSkipPhase to end the current Day / Report right away.
 	if RunService:IsStudio() then
+		-- DebugHideSlam = node: the hunter hears someone slam into that hiding spot.
+		state:GetAttributeChangedSignal("DebugHideSlam"):Connect(function()
+			local node = state:GetAttribute("DebugHideSlam")
+			if type(node) == "number" and graph.nodes[node] and graph.nodes[node].kind == "hide" then
+				hunter.emitSound(graph.nodes[node].room, origin + graph.nodes[node].pos, "hideSlam", node)
+			end
+		end)
 		-- DebugDumpTelemetry: copy the newest queued night record (JSON) to DebugTelemetryJson.
 		state:GetAttributeChangedSignal("DebugDumpTelemetry"):Connect(function()
 			local last = telemetry.queue[#telemetry.queue]
