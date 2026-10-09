@@ -16,3 +16,11 @@ def test_two_proportion_z():
     assert z == pytest.approx(6.54, abs=0.02) and p < 1e-9
     z, p = two_proportion_z(50, 100, 50, 100)
     assert z == 0 and p == pytest.approx(1.0)
+
+
+def test_database_url_normalized_for_psycopg():
+    from app.db import normalize_url
+
+    assert normalize_url("postgres://u:p@h/db") == "postgresql+psycopg://u:p@h/db"
+    assert normalize_url("postgresql://u:p@h/db?sslmode=require") == "postgresql+psycopg://u:p@h/db?sslmode=require"
+    assert normalize_url("sqlite:///x.db") == "sqlite:///x.db"

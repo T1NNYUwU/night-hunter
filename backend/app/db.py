@@ -61,8 +61,18 @@ class ModelVersion(Base):
     active: Mapped[bool] = mapped_column(Boolean, default=False, index=True)
 
 
+def normalize_url(url: str) -> str:
+    """Neon / Render hand out postgres:// or postgresql:// URLs; SQLAlchemy needs the driver."""
+    for prefix in ("postgres://", "postgresql://"):
+        if url.startswith(prefix):
+            return "postgresql+psycopg://" + url[len(prefix) :]
+    return url
+
+
 def make_sessionmaker(database_url: str):
+    database_url = normalize_url(database_url)
     connect_args = {"check_same_thread": False} if database_url.startswith("sqlite") else {}
-    engine = create_engine(database_url, connect_args=connect_args)
+    # pool_pre_ping: Neon closes idle connections when it scales to zero.
+    engine = create_engine(database_url, connect_args=connect_args, pool_pre_ping=True)
     Base.metadata.create_all(engine)
     return sessionmaker(bind=engine, expire_on_commit=False)

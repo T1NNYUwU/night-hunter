@@ -99,12 +99,18 @@ function NightCycle.start(house)
 	-- from real players when a backend is configured.
 	hunter.setModel(OpponentModel.fromParams(DefaultModel))
 	task.spawn(function()
-		if telemetry.isConfigured() then
+		-- A free Render server sleeps when idle and needs up to a minute to wake: retry a few times.
+		for _ = 1, 3 do
+			if not telemetry.isConfigured() then
+				return
+			end
 			local remote = OpponentModel.fromParams(telemetry.fetchModelParams())
 			if remote then
 				hunter.setModel(remote)
 				print(("[NightHunter] Opponent model %s loaded from the backend (%d steps)"):format(remote.version, remote.samples))
+				return
 			end
+			task.wait(40)
 		end
 	end)
 
