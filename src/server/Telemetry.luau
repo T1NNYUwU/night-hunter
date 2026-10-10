@@ -216,7 +216,9 @@ function Telemetry.start(status: Instance?)
 	function tel.fetchModelParams()
 		local ok, body = request("GET", "/v1/params/latest", nil)
 		if not ok then
-			warnOnce(body)
+			if not tostring(body):find("HTTP 404", 1, true) then -- 404 = no model trained yet: normal
+				warnOnce(body)
+			end
 			return nil
 		end
 		local decoded, params = pcall(function()

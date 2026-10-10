@@ -67,7 +67,7 @@ function TitleScreen.mount(gui: ScreenGui, state: Instance, player: Player, onPl
 	frame.Name = "Title"
 	frame.Size = UDim2.fromScale(1, 1)
 	frame.BackgroundColor3 = Color3.fromRGB(6, 4, 6)
-	frame.BackgroundTransparency = 0.08
+	frame.BackgroundTransparency = 0.5 -- the house shows through: the game is not "pitch black" at start
 	frame.ZIndex = 20
 	frame.Parent = gui
 

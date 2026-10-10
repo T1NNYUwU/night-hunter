@@ -2,7 +2,7 @@
 --   Shift (hold) sprint · C crouch on/off · F / click flashlight · E interact (prompts)
 --   V shop (day) · Q Noise Maker · R Battery · X Adrenaline (night)
 --   Mobile: on-screen RUN / SNEAK / LIGHT / SHOP / item buttons (ContextActionService touch buttons)
---   Studio only: G decoy · M switch brain · B show/hide the hunter's belief (debug)
+--   Studio only: G decoy · M switch brain · B show/hide the hunter's belief · P peace mode (debug)
 
 local CollectionService = game:GetService("CollectionService")
 local ContextActionService = game:GetService("ContextActionService")
@@ -90,7 +90,7 @@ for _, id in Items.order do
 end
 
 if RunService:IsStudio() then
-	for actionName, binding in { NightHunterDecoy = { Enum.KeyCode.G, "Decoy" }, NightHunterMode = { Enum.KeyCode.M, "ToggleMode" }, NightHunterBelief = { Enum.KeyCode.B, "ToggleBelief" } } do
+	for actionName, binding in { NightHunterDecoy = { Enum.KeyCode.G, "Decoy" }, NightHunterMode = { Enum.KeyCode.M, "ToggleMode" }, NightHunterBelief = { Enum.KeyCode.B, "ToggleBelief" }, NightHunterPeace = { Enum.KeyCode.P, "TogglePeace" } } do
 		ContextActionService:BindAction(actionName, function(_, inputState)
 			if inputState == Enum.UserInputState.Begin then
 				remotes[binding[2]]:FireServer()
@@ -154,7 +154,8 @@ walletPadding.Parent = wallet
 local debugInfo = label({ frame = UDim2.fromOffset(280, 20), pos = UDim2.fromOffset(12, 146), size = 12, color = Color3.fromRGB(160, 160, 170), alignX = Enum.TextXAlignment.Left })
 debugInfo.Visible = RunService:IsStudio()
 
-local banner = label({ frame = UDim2.fromOffset(560, 90), pos = UDim2.fromScale(0.5, 0.22), anchor = Vector2.new(0.5, 0.5), size = 32, font = Enum.Font.GothamBold, stroke = 0.4 })
+local peaceTag = label({ frame = UDim2.fromOffset(520, 22), pos = UDim2.fromScale(0.5, 0), anchor = Vector2.new(0.5, 0), size = 13, font = Enum.Font.GothamBold, color = Color3.fromRGB(120, 255, 170), stroke = 0.4 })
+local banner = label({ frame = UDim2.fromOffset(780, 90), pos = UDim2.fromScale(0.5, 0.22), anchor = Vector2.new(0.5, 0.5), size = 32, font = Enum.Font.GothamBold, stroke = 0.4 })
 local downNotice = label({ frame = UDim2.fromOffset(620, 70), pos = UDim2.fromScale(0.5, 0.62), anchor = Vector2.new(0.5, 0.5), size = 22, font = Enum.Font.GothamBold, color = Color3.fromRGB(255, 90, 90), stroke = 0.3 })
 
 local function bar(name: string, y: number, color: Color3)
@@ -232,9 +233,9 @@ end
 local viewmodel = Instance.new("Model")
 viewmodel.Name = "FlashlightViewmodel"
 -- Cylinders run along X; the body is turned so X points forward (-Z of the camera).
-local vmBody = viewPart("Body", Vector3.new(1.1, 0.26, 0.26), Color3.fromRGB(28, 28, 32), Enum.Material.Metal, Enum.PartType.Cylinder)
-local vmHead = viewPart("Head", Vector3.new(0.3, 0.36, 0.36), Color3.fromRGB(40, 40, 46), Enum.Material.Metal, Enum.PartType.Cylinder)
-local vmLens = viewPart("Lens", Vector3.new(0.04, 0.3, 0.3), Color3.fromRGB(255, 240, 200), Enum.Material.Glass, Enum.PartType.Cylinder)
+local vmBody = viewPart("Body", Vector3.new(1.1, 0.26, 0.26), Color3.fromRGB(52, 54, 60), Enum.Material.Metal, Enum.PartType.Cylinder)
+local vmHead = viewPart("Head", Vector3.new(0.3, 0.38, 0.38), Color3.fromRGB(74, 70, 62), Enum.Material.Metal, Enum.PartType.Cylinder)
+local vmLens = viewPart("Lens", Vector3.new(0.04, 0.32, 0.32), Color3.fromRGB(255, 240, 200), Enum.Material.Glass, Enum.PartType.Cylinder)
 vmBody.Parent = viewmodel
 vmHead.Parent = viewmodel
 vmLens.Parent = viewmodel
@@ -245,20 +246,51 @@ viewmodel.Parent = Workspace.CurrentCamera -- parts under the camera render only
 local beamPart = viewPart("LocalFlashlightBeam", Vector3.new(0.2, 0.2, 0.2), Color3.new(1, 1, 1), Enum.Material.SmoothPlastic)
 beamPart.Transparency = 1
 beamPart.Parent = Workspace
+-- A real torch has a bright centre and a soft edge, but Roblox spotlights are flat inside their cone.
+-- So: a NARROW bright core, and a wider dim halo around it. (One wide cone lit a whole 24-stud
+-- room's wall at once and the screen went white.)
+local BEAM_COLOR = Color3.fromRGB(255, 244, 220)
 local localBeam = Instance.new("SpotLight")
 localBeam.Face = Enum.NormalId.Front
-localBeam.Angle = 55
-localBeam.Range = 45
-localBeam.Brightness = 4
-localBeam.Color = Color3.fromRGB(255, 244, 220)
+localBeam.Angle = 24
+localBeam.Range = 50
+localBeam.Brightness = 3.2
+localBeam.Color = BEAM_COLOR
 localBeam.Shadows = true
 localBeam.Parent = beamPart
-local glow = Instance.new("PointLight") -- a faint spill around you so walls next to you are not pitch black
-glow.Range = 7
-glow.Brightness = 0.35
-glow.Color = localBeam.Color
+local halo = Instance.new("SpotLight")
+halo.Face = Enum.NormalId.Front
+halo.Angle = 48
+halo.Range = 24
+halo.Brightness = 0.3
+halo.Color = BEAM_COLOR
+halo.Shadows = false
+halo.Parent = beamPart
+local glow = Instance.new("PointLight") -- barely there: just enough that your own feet are not black
+glow.Range = 5
+glow.Brightness = 0.1
+glow.Color = BEAM_COLOR
 glow.Shadows = false
 glow.Parent = beamPart
+
+-- Your own hands and the (hidden) held tool sit right at the light and used to cast a big shadow
+-- over the beam. They still draw normally; they just do not block light.
+local function noShadows(model: Instance)
+	for _, d in model:GetDescendants() do
+		if d:IsA("BasePart") then
+			d.CastShadow = false
+		end
+	end
+	model.DescendantAdded:Connect(function(d)
+		if d:IsA("BasePart") then
+			d.CastShadow = false
+		end
+	end)
+end
+if player.Character then
+	noShadows(player.Character)
+end
+player.CharacterAdded:Connect(noShadows)
 
 ---------------------------------------------------------------- sound (2D, this player only)
 
@@ -382,8 +414,17 @@ RunService:BindToRenderStep("NightHunterView", Enum.RenderPriority.Camera.Value 
 	for _, p in viewmodel:GetChildren() do
 		p.Transparency = if holding then 0 else 1
 	end
-	beamPart.CFrame = camera.CFrame * CFrame.new(0.6, -0.5, -1)
+	-- The beam starts at the lens and aims at the point the crosshair is on, far ahead.
+	local lens = (hand * CFrame.new(0, 0, -0.9)).Position
+	-- The beam trails the camera a little, like a torch held in a hand (snaps when it is far off).
+	local target = CFrame.lookAt(lens, camera.CFrame:PointToWorldSpace(Vector3.new(0, 0, -80)))
+	if beamPart.CFrame.LookVector:Dot(target.LookVector) < 0.9 then
+		beamPart.CFrame = target
+	else
+		beamPart.CFrame = beamPart.CFrame:Lerp(target, math.min(1, dt * 16))
+	end
 	localBeam.Enabled = lightOn and holding
+	halo.Enabled = lightOn and holding
 	glow.Enabled = lightOn and holding
 	if tool then
 		for _, p in tool:GetDescendants() do
@@ -405,8 +446,10 @@ RunService:BindToRenderStep("NightHunterView", Enum.RenderPriority.Camera.Value 
 	closeness = math.max(closeness, hideView.suspicion()) -- hidden: your heart follows its suspicion
 	local pulse = 0.5 + 0.5 * math.sin(os.clock() * (4 + closeness * 8))
 	local night = state:GetAttribute("Phase") == "Night"
-	ambience.Volume += ((if night then 0.45 else 0.12) - ambience.Volume) * 0.02
-	heartbeat.Volume = closeness * 1.1
+	local peace = state:GetAttribute("Peace") == true
+	ambience.Volume += ((if peace then 0 elseif night then 0.45 else 0.12) - ambience.Volume) * 0.1
+	heartbeat.Volume = if peace then 0 else closeness * 1.1
+	scare.Volume = if peace then 0 else 2
 	heartbeat.PlaybackSpeed = 1 + closeness * 0.5
 	for _, f in vignette do
 		f.BackgroundTransparency = 1 - closeness * (0.55 + 0.25 * pulse)
@@ -458,6 +501,7 @@ while true do
 
 	title.update()
 	shop.update()
+	peaceTag.Text = if state:GetAttribute("Peace") == true then "PEACE MODE: no hunter, no music, the night never ends" .. (if RunService:IsStudio() then "  (P to turn off)" else "") else ""
 
 	info.Text = ("NIGHT %d / %d   ·   %s %s\n%s"):format(
 		night,

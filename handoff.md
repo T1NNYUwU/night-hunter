@@ -39,8 +39,11 @@
 | `src/server/Economy.luau` | 〃 | เหรียญ, ซื้อของ (กลางวัน), ใช้ของ (กลางคืน): Noise Maker / Battery / Adrenaline |
 | `src/server/Progress.luau` | 〃 | DataStore: คืนที่ไปได้ไกลสุด + จำนวนครั้งที่หนีรอด |
 | `src/server/HunterService.luau` | 〃 | ปีศาจในเกมจริง: ประสาทสัมผัส, เดิน, จับ |
-| `src/server/HouseBuilder.luau` | 〃 | สร้างโครงบ้าน, แสงตอนรัน, รัง, ensure() |
-| `src/server/HouseDecor.luau` | 〃 | ธีมห้อง, เฟอร์นิเจอร์, หน้าต่าง, โคมไฟ |
+| `src/server/HouseBuilder.luau` | 〃 | สร้าง **Shell** (พื้น กำแพง วงกบ+ประตู) และเรียกสร้างเฟอร์นิเจอร์; แสงตอนรัน; รัง; `ensure()` (ไม่แตะเฟอร์นิเจอร์ที่ทีมแก้) |
+| `src/server/HouseDecor.luau` | 〃 | ธีมห้อง, ฉาบผนัง, หน้าต่าง, เพดาน+โคมไฟ, ประตูหน้า, รังปีศาจ (ส่วนของ Shell) |
+| `src/server/HouseKit.luau` | 〃 | เครื่องมือสร้างร่วม (box, light, สี) + ค่าความสว่างของโคมทั้งบ้านที่เดียว |
+| `src/server/Furniture.luau` | 〃 | เฟอร์นิเจอร์: แคตตาล็อกบล็อกหยาบ, สร้างทีละชิ้นเป็นโมเดลเดี่ยว, ที่ซ่อน, `seed()` |
+| `src/server/FurnitureLayout.luau` | 〃 | **ผังเฟอร์นิเจอร์เริ่มต้น** ต่อห้อง (ชนิด ตำแหน่ง หมุน) |
 | `src/server/PlayerKit.luau` | 〃 | ท่าทาง/ความเร็ว/สตามินา, ไฟฉาย + แบตเตอรี่ |
 | `src/client/Client.client.luau` | StarterPlayerScripts.NightHunter | มุมมองบุรุษที่ 1, ปุ่มควบคุม, HUD, jumpscare, ขอบจอแดง, ลำแสงไฟฉายของตัวเอง, ไฟกะพริบ |
 | `src/client/TitleScreen.luau` | 〃 | หน้าเริ่มเกม: PLAY, วิธีเล่น, สถิติที่บันทึกไว้ |
@@ -53,12 +56,15 @@
 ## วิธีรัน
 1. `start-rojo.bat` (พอร์ต 34872) → ใน Studio กด Connect ที่ปลั๊กอิน Rojo
 2. แมพบน Roblox: **7 Nights Hunter** (placeId 137354108090781) บ้านถูกบันทึกในแมพ (`Workspace.NightHunterHouse`)
-3. ถ้าแก้กราฟหรือของตกแต่ง ให้สร้างบ้านใหม่จาก command bar:
-   `require(game.ServerScriptService.NightHunter.HouseBuilder).build(require(game.ReplicatedStorage.NightHunter.HouseGraph).build())`
+3. ถ้าแก้กราฟ/กำแพง/แสง ให้สร้าง **Shell** ใหม่ (เฟอร์นิเจอร์ที่ทีมแก้ไว้ไม่ถูกแตะ); ถ้าจะล้างเฟอร์นิเจอร์กลับผังเริ่มต้นต้องใส่ `{ furniture = "reseed" }` ดูขั้นตอนใน [docs/teamwork.md](docs/teamwork.md)
 4. ตัวจำลอง (command bar, ใช้สำเนาเพื่อเลี่ยง cache ของ require):
    `print(require(game.ReplicatedStorage.NightHunter:Clone().Sim).report({ episodes = 100 }))`
 
 ## ข้อควรระวัง (เคยพังมาแล้ว)
+- **เฟอร์นิเจอร์อยู่ในไฟล์แมพ ไม่ใช่ใน git** (ทีมย้ายด้วยมือได้) `ensure()` จะไม่ตัดสินใจแทน ถ้ากราฟเปลี่ยนจนที่ซ่อนไม่ตรง เกมจะเตือนใน Output ให้ reseed
+- `UIGradient.Transparency` บน Frame ทึบทำให้เห็นฉากทะลุ (เคยทำให้บานประตูตอนซ่อนโปร่ง) → ใช้ Frame ทึบ ๆ แทน
+- ไฟฉาย: Roblox SpotLight ไม่มีขอบนุ่ม กรวยกว้างเดียวส่องผนังทั้งห้อง (ห้อง 24 studs) จอขาวหมด → ใช้แกนแคบ 24° + รัศมีจาง 48° และตั้ง `CastShadow=false` ให้แขน/ตัวละครของตัวเอง ไม่งั้นเงาบังกรวย (`Client.client.luau`)
+- หน้า Title เคยทึบ 92% ทำให้ "เริ่มเกมแล้วมืดทั้งจอ" ตอนนี้โปร่ง 50% และกลางวัน/กลางคืนใช้แสงต่างกัน (`NightCycle.setMood`)
 - **ห้ามใช้ MCP `screen_capture` แบบกำหนดตำแหน่งกล้องในโหมด Edit** ถ้าหมดเวลากลางคัน กล้องจะเสียและติดไปกับไฟล์ แก้โดยลบ `Workspace.Camera` แล้ว Save (รายละเอียดใน plan.md หัวข้อ 10.1)
 - `require()` ในโหมด Edit จะ cache โมดูลรุ่นเก่า ให้ `:Clone()` โฟลเดอร์ก่อน require
 - `HouseBuilder.build()` ห้ามตั้งแสง (โหมด Edit จะมืด) แสงกลางคืนตั้งใน `ensure()` ตอนรันเท่านั้น
@@ -82,6 +88,7 @@
 - ดู telemetry คืนล่าสุด: `workspace.NightHunterState:SetAttribute("DebugDumpTelemetry", os.clock())` แล้วอ่าน attribute `DebugTelemetryJson`
 - ทดสอบที่ซ่อน (Studio): `NightHunterState:SetAttribute("DebugHideSlam", <node>)` = ปีศาจได้ยินเสียงกระแทกจากที่ซ่อนนั้น; attribute `DebugRecentSpeed` บนผู้เล่น = ความเร็วที่เซิร์ฟเวอร์จำไว้
 - ทดสอบด้วย MCP: `execute_luau` จะรีเซ็ตกล้องเป็น Custom หลังรัน (HideView ตั้งกลับให้เอง) และ `Humanoid:Move` จากสคริปต์ทดสอบโดน ControlModule ทับ — ใช้ `MoveTo` ฝั่ง server หรือ attribute debug แทน
+- **โหมดสงบ** (ปิดผี/เพลง/เวลาไม่หมด): กด P ตอน Play ใน Studio หรือ ServerStorage attribute `PeaceMode=true` (ต้องปิดก่อน Publish)
 - ปุ่ม M ใน Studio: สลับสมอง rule → belief → pomcp → pomcp+model
 - ตัวจำลองเทียบสมอง (command bar): `print(require(game.ReplicatedStorage.NightHunter:Clone().Sim).report({ episodes = 100, brains = {"rule","belief","pomcp"}, lair = "random", wakeTicks = 16, yield = true }))`
 - Telemetry ไม่ได้ตั้ง URL จะเตือน 1 ครั้ง "Telemetry offline (game unaffected)" — ปกติ

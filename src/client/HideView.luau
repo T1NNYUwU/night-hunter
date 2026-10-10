@@ -68,32 +68,26 @@ function HideView.mount(gui: ScreenGui, player: Player, remotes: Folder)
 	local woodColor = Color3.fromRGB(22, 15, 11)
 	local left = frame(doors, { size = UDim2.fromScale(0.43, 1), color = woodColor })
 	local right = frame(doors, { size = UDim2.fromScale(0.43, 1), pos = UDim2.fromScale(1, 0), anchor = Vector2.new(1, 0), color = woodColor })
-	gradient(left, 0, 0, 0.15)
-	gradient(right, 180, 0, 0.15)
+	-- (No UIGradient on solid panels: it made them see-through. They must be opaque.)
 	-- Slats: a few faint horizontal lines on each door, so it reads as wood.
 	for i = 1, 6 do
 		for _, door in { left, right } do
 			frame(door, { size = UDim2.new(1, 0, 0, 2), pos = UDim2.fromScale(0, i / 7), color = Color3.fromRGB(40, 28, 20), z = 6 })
 		end
 	end
-	-- Darken the top and bottom of the gap too.
-	local gapTop = frame(doors, { size = UDim2.new(0.14, 0, 0.12, 0), pos = UDim2.fromScale(0.5, 0), anchor = Vector2.new(0.5, 0), color = woodColor })
-	gradient(gapTop, 90, 0, 1)
-	local gapBottom = frame(doors, { size = UDim2.new(0.14, 0, 0.12, 0), pos = UDim2.fromScale(0.5, 1), anchor = Vector2.new(0.5, 1), color = woodColor })
-	gradient(gapBottom, -90, 0, 1)
+	-- The top and bottom of the gap are shut, so you peek through a slit, not a full-height window.
+	frame(doors, { size = UDim2.new(0.14, 0, 0.14, 0), pos = UDim2.fromScale(0.5, 0), anchor = Vector2.new(0.5, 0), color = woodColor })
+	frame(doors, { size = UDim2.new(0.14, 0, 0.14, 0), pos = UDim2.fromScale(0.5, 1), anchor = Vector2.new(0.5, 1), color = woodColor })
 
 	-- Table: the cloth hangs over most of the view; you see the floor under its hem.
 	local cloth = frame(root, { size = UDim2.fromScale(1, 0.62), color = Color3.fromRGB(70, 62, 52) })
-	gradient(cloth, 90, 0, 0.05)
-	local hem = frame(cloth, { size = UDim2.new(1, 0, 0, 14), pos = UDim2.fromScale(0, 1), color = Color3.fromRGB(95, 86, 72), z = 6 })
-	gradient(hem, 90, 0, 0.6)
-	local under = frame(root, { size = UDim2.fromScale(1, 0.38), pos = UDim2.fromScale(0, 1), anchor = Vector2.new(0, 1), color = Color3.new(0, 0, 0) })
-	gradient(under, -90, 0.35, 1)
+	frame(cloth, { size = UDim2.new(1, 0, 0, 14), pos = UDim2.fromScale(0, 1), color = Color3.fromRGB(95, 86, 72), z = 6 })
+	local under = frame(root, { size = UDim2.fromScale(1, 0.38), pos = UDim2.fromScale(0, 1), anchor = Vector2.new(0, 1), color = Color3.new(0, 0, 0), transparency = 0.75 })
 
 	-- HUD
 	local hint = text(root, {
 		frame = UDim2.fromOffset(560, 22),
-		pos = UDim2.new(0.5, 0, 1, -118),
+		pos = UDim2.new(0.5, 0, 1, -214),
 		size = 15,
 		text = "HIDDEN   ·   E: leave   ·   hold SPACE: hold your breath",
 	})
@@ -105,8 +99,8 @@ function HideView.mount(gui: ScreenGui, player: Player, remotes: Folder)
 		text(back, { frame = UDim2.fromOffset(240, 14), pos = UDim2.new(0.5, 0, 0, -16), size = 11, text = label, color = Color3.fromRGB(210, 210, 215) })
 		return fill
 	end
-	local breathFill = meter(-84, "BREATH", Color3.fromRGB(140, 210, 255))
-	local suspicionFill = meter(-58, "IT SUSPECTS THIS SPOT", Color3.fromRGB(230, 60, 60))
+	local breathFill = meter(-170, "BREATH", Color3.fromRGB(140, 210, 255))
+	local suspicionFill = meter(-138, "IT SUSPECTS THIS SPOT", Color3.fromRGB(230, 60, 60))
 
 	------------------------------------------------------------ input
 

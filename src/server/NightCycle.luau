@@ -14,8 +14,10 @@
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Lighting = game:GetService("Lighting")
 local RunService = game:GetService("RunService")
 local ServerStorage = game:GetService("ServerStorage")
+local TweenService = game:GetService("TweenService")
 local Workspace = game:GetService("Workspace")
 
 local Shared = ReplicatedStorage:WaitForChild("NightHunter")
@@ -47,6 +49,21 @@ local SCHEDULE = { "supplies", "supplies", "power", "supplies", "power", "suppli
 local PATROL_SPEED = { 10, 11, 12, 13, 14, 15, 16 }
 local CHARGE_SPEED = { 15, 16, 17, 18, 19, 19, 20 }
 local HEARING = { 0.75, 0.8, 0.85, 0.9, 0.95, 1.0, 1.0 }
+
+-- The house is lit a little by day (to plan and shop), and nearly dark at night.
+local MOODS = {
+	day = { Ambient = Color3.fromRGB(58, 60, 78), OutdoorAmbient = Color3.fromRGB(52, 56, 76), Brightness = 0.35 },
+	night = { Ambient = Color3.fromRGB(26, 28, 40), OutdoorAmbient = Color3.fromRGB(22, 25, 38), Brightness = 0.12 },
+}
+local function setMood(name: string, seconds: number)
+	if seconds <= 0 then
+		for k, v in MOODS[name] do
+			Lighting[k] = v
+		end
+	else
+		TweenService:Create(Lighting, TweenInfo.new(seconds), MOODS[name]):Play()
+	end
+end
 
 local NightCycle = {}
 
@@ -463,6 +480,7 @@ function NightCycle.start(house)
 	end
 
 	local function beginDay()
+		setMood("day", 2)
 		phase = "Day"
 		phaseEndsAt = Workspace:GetServerTimeNow() + DAY_SECONDS
 		result = ""
@@ -509,6 +527,7 @@ function NightCycle.start(house)
 	end
 
 	local function toTitle()
+		setMood("day", 2)
 		phase = "Waiting"
 		phaseEndsAt = 0
 		for player in downed do
@@ -524,6 +543,7 @@ function NightCycle.start(house)
 	end
 
 	local function beginNight()
+		setMood("night", 4)
 		phase = "Night"
 		phaseEndsAt = Workspace:GetServerTimeNow() + NIGHT_SECONDS
 		wakeAt = Workspace:GetServerTimeNow() + WAKE_SECONDS
@@ -579,7 +599,11 @@ function NightCycle.start(house)
 		if phase == "Day" and now >= phaseEndsAt then
 			beginNight()
 		elseif phase == "Night" then
-			if wakeAt > 0 and now >= wakeAt then
+			if state:GetAttribute("Peace") == true then
+				-- Peace mode (editing / testing): the hunter stays asleep and the night never runs out.
+				wakeAt = 0
+				phaseEndsAt = math.max(phaseEndsAt, now + 30)
+			elseif wakeAt > 0 and now >= wakeAt then
 				wakeAt = 0
 				hunter.setActive(true)
 				pushState()
@@ -617,6 +641,27 @@ function NightCycle.start(house)
 			startRun()
 		end
 	end)
+
+	-- PEACE MODE: no hunter, no scary music, the night never ends. For building and testing the map.
+	-- On for a whole session: set the ServerStorage attribute PeaceMode = true (in Edit mode, it is saved
+	-- in the place; remember to turn it off before publishing). Toggle while playing in Studio: press P.
+	state:SetAttribute("Peace", ServerStorage:GetAttribute("PeaceMode") == true)
+	state:GetAttributeChangedSignal("Peace"):Connect(function()
+		if state:GetAttribute("Peace") == true then
+			hunter.setActive(false)
+		elseif phase == "Night" then
+			wakeAt = Workspace:GetServerTimeNow() + 4 -- it wakes up again, with a short warning
+		end
+		pushState()
+	end)
+	if RunService:IsStudio() then
+		local peaceRemote = Instance.new("RemoteEvent")
+		peaceRemote.Name = "TogglePeace"
+		peaceRemote.Parent = ReplicatedStorage:WaitForChild("NightHunterRemotes")
+		peaceRemote.OnServerEvent:Connect(function()
+			state:SetAttribute("Peace", state:GetAttribute("Peace") ~= true)
+		end)
+	end
 
 	-- Studio only (for testing): set DebugJumpToNight = n on NightHunterState to start that
 	-- night's day, or change DebugSkipPhase to end the current Day / Report right away.
@@ -678,6 +723,7 @@ function NightCycle.start(house)
 		end
 	end)
 
+	setMood("day", 0)
 	pushState()
 end
 

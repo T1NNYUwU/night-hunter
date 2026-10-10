@@ -26,7 +26,7 @@ local TweenService = game:GetService("TweenService")
 local Shared = ReplicatedStorage:WaitForChild("NightHunter")
 local Acoustics = require(Shared:WaitForChild("Acoustics"))
 local HouseGraph = require(Shared:WaitForChild("HouseGraph"))
-local HouseDecor = require(script.Parent.HouseDecor)
+local Furniture = require(script.Parent.Furniture)
 
 local TICK = 0.5
 local BREATH_SECONDS = 6 -- how long you can hold your breath
@@ -134,7 +134,7 @@ function HideService.start(ctx)
 
 	------------------------------------------------------------ spots
 
-	for _, model in CollectionService:GetTagged(HouseDecor.HIDE_TAG) do
+	for _, model in CollectionService:GetTagged(Furniture.HIDE_TAG) do
 		if model:IsDescendantOf(ctx.house.root) then
 			local node = model:GetAttribute("Node")
 			local promptPart = model:FindFirstChild("PromptPart")
