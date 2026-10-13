@@ -645,7 +645,8 @@ function NightCycle.start(house)
 	-- PEACE MODE: no hunter, no scary music, the night never ends. For building and testing the map.
 	-- On for a whole session: set the ServerStorage attribute PeaceMode = true (in Edit mode, it is saved
 	-- in the place; remember to turn it off before publishing). Toggle while playing in Studio: press P.
-	state:SetAttribute("Peace", ServerStorage:GetAttribute("PeaceMode") == true)
+	-- (Only honoured in Studio: a live server can never start in peace mode by accident.)
+	state:SetAttribute("Peace", RunService:IsStudio() and ServerStorage:GetAttribute("PeaceMode") == true)
 	state:GetAttributeChangedSignal("Peace"):Connect(function()
 		if state:GetAttribute("Peace") == true then
 			hunter.setActive(false)

@@ -83,9 +83,6 @@ function PlayerKit.start(hooks)
 	local stanceRemote = Instance.new("RemoteEvent")
 	stanceRemote.Name = "SetStance"
 	stanceRemote.Parent = remotes
-	local lightRemote = Instance.new("RemoteEvent")
-	lightRemote.Name = "ToggleFlashlight"
-	lightRemote.Parent = remotes
 	remotes.Parent = ReplicatedStorage
 
 	local wanted = {} -- [Player] = stance the client asked for
@@ -149,10 +146,13 @@ function PlayerKit.start(hooks)
 				extra:Destroy() -- one item: the flashlight (other kits left in StarterPack would add scripts)
 			end
 		end
+		-- An ordinary inventory item: the player takes it out (1) and clicks to switch the light.
 		tool.Activated:Connect(function()
 			toggleLight(player)
 		end)
-		humanoid:EquipTool(tool)
+		tool.Unequipped:Connect(function()
+			setLight(player, false)
+		end)
 		-- The hand and the torch sit right at the light: if they cast shadows they black out the beam.
 		for _, d in character:GetDescendants() do
 			if d:IsA("BasePart") then
@@ -194,7 +194,6 @@ function PlayerKit.start(hooks)
 			wanted[player] = stance
 		end
 	end)
-	lightRemote.OnServerEvent:Connect(toggleLight)
 
 	RunService.Heartbeat:Connect(function(dt)
 		for _, player in Players:GetPlayers() do

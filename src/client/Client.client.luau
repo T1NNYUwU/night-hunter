@@ -1,5 +1,5 @@
 -- Survivor client: first-person view, controls, HUD and the scary bits.
---   Shift (hold) sprint · C crouch on/off · F / click flashlight · E interact (prompts)
+--   Shift (hold) sprint · C crouch on/off · 1 take out the flashlight, click = light on/off · E interact (prompts)
 --   V shop (day) · Q Noise Maker · R Battery · X Adrenaline (night)
 --   Mobile: on-screen RUN / SNEAK / LIGHT / SHOP / item buttons (ContextActionService touch buttons)
 --   Studio only: G decoy · M switch brain · B show/hide the hunter's belief · P peace mode (debug)
@@ -25,9 +25,9 @@ local remotes = ReplicatedStorage:WaitForChild("NightHunterRemotes")
 local state = Workspace:WaitForChild("NightHunterState")
 
 player.CameraMode = Enum.CameraMode.LockFirstPerson
--- One item, switched with F / the LIGHT button: the default hotbar only covers our HUD.
+-- The flashlight is a normal inventory item: Roblox's own hotbar shows it (press 1, or tap it).
 pcall(function()
-	game:GetService("StarterGui"):SetCoreGuiEnabled(Enum.CoreGuiType.Backpack, false)
+	game:GetService("StarterGui"):SetCoreGuiEnabled(Enum.CoreGuiType.Backpack, true)
 end)
 
 ---------------------------------------------------------------- controls
@@ -58,19 +58,10 @@ ContextActionService:BindAction("NightHunterCrouch", function(_, inputState)
 	return Enum.ContextActionResult.Sink
 end, true, Enum.KeyCode.C, Enum.KeyCode.ButtonB)
 
-ContextActionService:BindAction("NightHunterLight", function(_, inputState)
-	if inputState == Enum.UserInputState.Begin then
-		remotes:WaitForChild("ToggleFlashlight"):FireServer()
-	end
-	return Enum.ContextActionResult.Sink
-end, true, Enum.KeyCode.F, Enum.KeyCode.ButtonY)
-
 ContextActionService:SetTitle("NightHunterSprint", "RUN")
 ContextActionService:SetTitle("NightHunterCrouch", "SNEAK")
-ContextActionService:SetTitle("NightHunterLight", "LIGHT")
 ContextActionService:SetPosition("NightHunterSprint", UDim2.new(1, -170, 1, -170))
 ContextActionService:SetPosition("NightHunterCrouch", UDim2.new(1, -95, 1, -230))
-ContextActionService:SetPosition("NightHunterLight", UDim2.new(1, -230, 1, -95))
 
 -- Items: one key each, used at night. The server checks the phase, the count and a cooldown.
 local ITEM_BUTTON_POS = {
@@ -158,26 +149,53 @@ local peaceTag = label({ frame = UDim2.fromOffset(520, 22), pos = UDim2.fromScal
 local banner = label({ frame = UDim2.fromOffset(780, 90), pos = UDim2.fromScale(0.5, 0.22), anchor = Vector2.new(0.5, 0.5), size = 32, font = Enum.Font.GothamBold, stroke = 0.4 })
 local downNotice = label({ frame = UDim2.fromOffset(620, 70), pos = UDim2.fromScale(0.5, 0.62), anchor = Vector2.new(0.5, 0.5), size = 22, font = Enum.Font.GothamBold, color = Color3.fromRGB(255, 90, 90), stroke = 0.3 })
 
-local function bar(name: string, y: number, color: Color3)
-	local back = Instance.new("Frame")
-	back.Name = name
-	back.Size = UDim2.fromOffset(220, 8)
-	back.Position = UDim2.new(0.5, 0, 1, y)
-	back.AnchorPoint = Vector2.new(0.5, 1)
-	back.BackgroundColor3 = Color3.fromRGB(20, 20, 24)
-	back.BackgroundTransparency = 0.3
-	back.BorderSizePixel = 0
-	back.Parent = gui
-	local fill = Instance.new("Frame")
-	fill.Size = UDim2.fromScale(1, 1)
-	fill.BackgroundColor3 = color
-	fill.BorderSizePixel = 0
-	fill.Parent = back
-	local caption = label({ parent = back, frame = UDim2.fromOffset(220, 14), pos = UDim2.fromOffset(0, -16), size = 11, color = Color3.fromRGB(200, 200, 205), alignX = Enum.TextXAlignment.Left })
-	return fill, caption
+-- Status (bottom left, clear of the hotbar in the bottom centre):
+--   STAMINA  a slim bar that only shows while you are using it or it is refilling
+--   BATTERY  five cells, shown while the flashlight is in your hand (below it, "[1] FLASHLIGHT")
+local status = Instance.new("Frame")
+status.Name = "Status"
+status.Size = UDim2.fromOffset(190, 52)
+status.AnchorPoint = Vector2.new(0, 1)
+status.Position = UDim2.new(0, 18, 1, -18)
+status.BackgroundTransparency = 1
+status.Parent = gui
+
+local staminaBack = Instance.new("Frame")
+staminaBack.Size = UDim2.fromOffset(190, 6)
+staminaBack.Position = UDim2.fromOffset(0, 40)
+staminaBack.BackgroundColor3 = Color3.fromRGB(10, 10, 14)
+staminaBack.BorderSizePixel = 0
+staminaBack.Parent = status
+local staminaFill = Instance.new("Frame")
+staminaFill.Size = UDim2.fromScale(1, 1)
+staminaFill.BackgroundColor3 = Color3.fromRGB(150, 205, 255)
+staminaFill.BorderSizePixel = 0
+staminaFill.Parent = staminaBack
+for _, f in { staminaBack, staminaFill } do
+	local c = Instance.new("UICorner")
+	c.CornerRadius = UDim.new(1, 0)
+	c.Parent = f
 end
-local staminaFill, staminaCaption = bar("Stamina", -46, Color3.fromRGB(120, 200, 255))
-local batteryFill, batteryCaption = bar("Battery", -20, Color3.fromRGB(255, 220, 120))
+
+local batteryRow = Instance.new("Frame")
+batteryRow.Size = UDim2.fromOffset(190, 28)
+batteryRow.Position = UDim2.fromOffset(0, 8)
+batteryRow.BackgroundTransparency = 1
+batteryRow.Parent = status
+local cells = {}
+for i = 1, 5 do
+	local cell = Instance.new("Frame")
+	cell.Size = UDim2.fromOffset(34, 9)
+	cell.Position = UDim2.fromOffset((i - 1) * 39, 2)
+	cell.BackgroundColor3 = Color3.fromRGB(255, 214, 120)
+	cell.BorderSizePixel = 0
+	cell.Parent = batteryRow
+	local c = Instance.new("UICorner")
+	c.CornerRadius = UDim.new(0, 2)
+	c.Parent = cell
+	cells[i] = cell
+end
+local batteryHint = label({ parent = batteryRow, frame = UDim2.fromOffset(190, 14), pos = UDim2.fromOffset(0, 14), size = 11, color = Color3.fromRGB(190, 190, 198), alignX = Enum.TextXAlignment.Left, stroke = 0.5 })
 
 -- Red edges that thicken as the hunter gets close (four gradient strips = a cheap vignette).
 local vignette = {}
@@ -218,6 +236,38 @@ end
 local ambience = localSound(Sounds.ambience, 0, true)
 local heartbeat = localSound(Sounds.heartbeat, 0, true)
 local scare = localSound(Sounds.hunterGrowl, 2, false)
+
+-- Peace mode silences EVERY sound (music, heartbeat, footsteps, the flashlight click...). Roblox has no
+-- master volume, so each Sound is set to 0 (its own volume is remembered) and new ones are caught.
+local peaceMuted = false
+local function muteSound(sound: Sound)
+	if sound:GetAttribute("OrigVolume") == nil then
+		sound:SetAttribute("OrigVolume", sound.Volume)
+	end
+	sound.Volume = if peaceMuted then 0 else sound:GetAttribute("OrigVolume")
+end
+local function setPeaceMute(peace: boolean)
+	if peace == peaceMuted then
+		return
+	end
+	peaceMuted = peace
+	for _, root in { SoundService, Workspace } do
+		for _, d in root:GetDescendants() do
+			if d:IsA("Sound") and d ~= ambience and d ~= heartbeat and d ~= scare then
+				muteSound(d)
+			end
+		end
+	end
+end
+local function watchSounds(root: Instance)
+	root.DescendantAdded:Connect(function(d)
+		if d:IsA("Sound") and peaceMuted then
+			muteSound(d)
+		end
+	end)
+end
+watchSounds(Workspace)
+watchSounds(SoundService)
 ambience:Play()
 heartbeat:Play()
 
@@ -324,6 +374,7 @@ RunService:BindToRenderStep("NightHunterView", Enum.RenderPriority.Camera.Value 
 	local pulse = 0.5 + 0.5 * math.sin(os.clock() * (4 + closeness * 8))
 	local night = state:GetAttribute("Phase") == "Night"
 	local peace = state:GetAttribute("Peace") == true
+	setPeaceMute(peace)
 	ambience.Volume += ((if peace then 0 elseif night then 0.45 else 0.12) - ambience.Volume) * 0.1
 	heartbeat.Volume = if peace then 0 else closeness * 1.1
 	scare.Volume = if peace then 0 else 2
@@ -405,7 +456,7 @@ while true do
 		table.insert(parts, ("ADRENALINE %ds"):format(math.ceil(boostLeft)))
 	end
 	wallet.Text = table.concat(parts, "  ·  ")
-	debugInfo.Text = ("[debug] brain %s · %s · %.3f ms · G/M/B"):format(
+	debugInfo.Text = ("[debug] brain %s · %s · %.3f ms · G/M/B/P"):format(
 		string.upper(state:GetAttribute("Mode") or "?"),
 		state:GetAttribute("HunterMode") or "?",
 		state:GetAttribute("BrainMs") or 0
@@ -414,9 +465,21 @@ while true do
 	local stamina = player:GetAttribute("Stamina") or 1
 	local battery = player:GetAttribute("Battery") or 1
 	staminaFill.Size = UDim2.fromScale(stamina, 1)
-	batteryFill.Size = UDim2.fromScale(battery, 1)
-	staminaCaption.Text = ("%s  (Shift run · C sneak)"):format(string.upper(player:GetAttribute("Stance") or "walk"))
-	batteryCaption.Text = ("FLASHLIGHT %s  %d%%  (F)"):format(if player:GetAttribute("Flashlight") then "ON" else "OFF", math.floor(battery * 100))
+	local staminaShown = stamina < 0.99 or player:GetAttribute("Stance") == "sprint"
+	staminaBack.BackgroundTransparency = if staminaShown then 0.35 else 1
+	staminaFill.BackgroundTransparency = if staminaShown then 0 else 1
+	staminaFill.BackgroundColor3 = if stamina < 0.2 then Color3.fromRGB(255, 120, 100) else Color3.fromRGB(150, 205, 255)
+
+	local held = player.Character ~= nil and player.Character:FindFirstChild("Flashlight") ~= nil
+	local on = player:GetAttribute("Flashlight") == true
+	local filled = math.ceil(battery * 5 - 1e-6)
+	for i, cell in cells do
+		cell.Visible = held
+		cell.BackgroundTransparency = if i <= filled then (if on then 0 else 0.35) else 0.85
+		cell.BackgroundColor3 = if battery < 0.25 then Color3.fromRGB(255, 110, 90) else Color3.fromRGB(255, 214, 120)
+	end
+	batteryHint.Position = UDim2.fromOffset(0, if held then 14 else 0)
+	batteryHint.Text = if held then (if on then "FLASHLIGHT ON  ·  click to turn off" else "click to turn the light on") else "[1]  FLASHLIGHT"
 
 	if phase == "Waiting" then
 		banner.Text = ""

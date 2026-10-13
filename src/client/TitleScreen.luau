@@ -21,7 +21,7 @@ and on night 7 find the key and leave by the front door.
 Doing the job is loud. Plan your route during the day —
 you can see which room the hunter sleeps in.
 
-  · F  flashlight   · E  interact / revive a teammate
+  · 1  take out the flashlight, click = light on/off   · E  interact / revive a teammate
   · V  shop (day)   · Q  Noise Maker   · R  Battery   · X  Adrenaline
 ]]
 
