@@ -4,7 +4,7 @@
 -- baked into the room, and rebuilding the house shell never touches this folder.
 --
 -- A piece is a rough BLOCK placeholder (position, shape, size) for now. Each Model has
---   attributes  Kind (e.g. "bed"), Room (1-16), Placeholder (true)
+--   attributes  Kind (e.g. "bed"), Room (1-17), Placeholder (true)
 --   pivot       its floor centre (WorldPivot), front = -Z
 -- To swap in real art later, put a model named like the Kind's `asset` in ServerStorage.AssetLibrary
 -- and seed with style "assets" (see seed()), or replace pieces by hand and leave them alone.
@@ -24,10 +24,10 @@ local FurnitureLayout = require(script.Parent.FurnitureLayout)
 local box, placer, light = HouseKit.box, HouseKit.placer, HouseKit.light
 local WOOD, WOOD_DARK, WOOD_LIGHT = HouseKit.WOOD, HouseKit.WOOD_DARK, HouseKit.WOOD_LIGHT
 local DIRTY_WHITE, BRASS, METAL, WARM_LIGHT = HouseKit.DIRTY_WHITE, HouseKit.BRASS, HouseKit.METAL, HouseKit.WARM_LIGHT
-local FACE, WALL_YAW = HouseKit.FACE, HouseKit.WALL_YAW
+local WALL_FACE, WALL_YAW = HouseKit.WALL_FACE, HouseKit.WALL_YAW
 
 local Furniture = {}
-Furniture.VERSION = 1 -- bump when FurnitureLayout changes; saved furniture is NOT rebuilt automatically
+Furniture.VERSION = 2 -- bump when FurnitureLayout changes; saved furniture is NOT rebuilt automatically
 Furniture.HIDE_TAG = "NightHunterHideSpot"
 
 local V = Vector3.new
@@ -268,6 +268,13 @@ local CATALOG = {
 	candelabra = item(V(0.9, 3.2, 0.9), BRASS, Enum.Material.Metal, builders.candelabra, "Candelabra"),
 	painting = item(V(3, 4, 0.2), BRASS, Enum.Material.Metal, builders.painting),
 	rug = item(V(8, 0.07, 6), HouseKit.CLOTH_RED, Enum.Material.Fabric, builders.rug),
+	sofa = item(V(8, 4, 3), HouseKit.CLOTH_RED, Enum.Material.Fabric, builders.armchair),
+	piano = item(V(7, 4.6, 3), Color3.fromRGB(22, 20, 22), Enum.Material.Wood, block(true)),
+	wineRack = item(V(9, 7, 2), WOOD_DARK, Enum.Material.Wood, block(true)),
+	boiler = item(V(6, 9, 6), Color3.fromRGB(70, 64, 60), Enum.Material.CorrodedMetal, block(false)),
+	coffin = item(V(3, 2.6, 7.5), WOOD_DARK, Enum.Material.Wood, block(true)),
+	slab = item(V(4, 3.2, 8), Color3.fromRGB(150, 154, 152), Enum.Material.Metal, block(false)),
+	longTable = item(V(12, 3.1, 4.5), WOOD_DARK, Enum.Material.Wood, builders.smallTable),
 	-- Library art only (nothing is drawn in "blocks" style):
 	cobweb = item(V(15.2, 2.8, 15.7), DIRTY_WHITE, Enum.Material.Fabric, nil, "Cobwebs", { assetOnly = true }),
 }
@@ -343,9 +350,22 @@ end
 
 -- Hiding spot models (they have doors / a cloth that HideService animates). Library art; a plain
 -- box stands in if the library is missing (then it cannot be used to hide).
-local function makeHideSpot(folder, node, origin)
-	local base0 = placer(origin + HouseGraph.roomCenter(node.room))
-	local rel = node.pos - HouseGraph.roomCenter(node.room)
+-- Distance from a room's centre point to the inner face of its wall on `side`.
+local function faceDist(room, side: string): number
+	local c = room.center
+	if side == "W" then
+		return c.X - room.x0 - WALL_FACE
+	elseif side == "E" then
+		return room.x1 - c.X - WALL_FACE
+	elseif side == "N" then
+		return c.Z - room.z0 - WALL_FACE
+	end
+	return room.z1 - c.Z - WALL_FACE
+end
+
+local function makeHideSpot(folder, node, origin, room)
+	local base0 = placer(origin + room.center)
+	local rel = node.pos - room.center
 	local kind = node.spot or "wardrobe"
 	local name = if kind == "table" then "HideTable" else "HideWardrobe"
 	local template = HouseKit.libraryModel(name)
@@ -355,8 +375,9 @@ local function makeHideSpot(folder, node, origin)
 		base = base0(rel.X, 0, rel.Z, 0)
 	else
 		local side = node.wall or "N"
-		local x = if side == "W" then -(FACE - depth / 2 - 0.05) elseif side == "E" then FACE - depth / 2 - 0.05 else rel.X
-		local z = if side == "N" then -(FACE - depth / 2 - 0.05) elseif side == "S" then FACE - depth / 2 - 0.05 else rel.Z
+		local d = faceDist(room, side) - depth / 2 - 0.05
+		local x = if side == "W" then -d elseif side == "E" then d else rel.X
+		local z = if side == "N" then -d elseif side == "S" then d else rel.Z
 		base = base0(x, 0, z, WALL_YAW[side])
 	end
 	local spot
@@ -411,49 +432,54 @@ function Furniture.seed(root: Instance, graph, origin: Vector3, style: string?)
 	folder:SetAttribute("Version", Furniture.VERSION)
 	folder:SetAttribute("Style", style)
 
-	for room = 1, graph.roomCount do
+	for roomId = 1, graph.roomCount do
+		local room = graph.rooms[roomId]
 		local roomFolder = Instance.new("Folder")
-		roomFolder.Name = HouseDecor.THEMES[room].name
-		local at = placer(origin + HouseGraph.roomCenter(room))
+		roomFolder.Name = HouseDecor.THEMES[roomId].name
+		local at = placer(origin + room.center)
 
-		-- The builder context handed to FurnitureLayout.rooms[room]:
+		-- The builder context handed to FurnitureLayout.rooms[roomId]. Positions are measured from the
+		-- room's centre point; `dist(side)` = how far that wall's inner face is from it.
 		local ctx = {}
 		function ctx.piece(kind, x, z, yaw, opts)
 			opts = opts or {}
-			return makePiece(roomFolder, kind, room, at(x, opts.y or 0, z, yaw), style, opts)
+			return makePiece(roomFolder, kind, roomId, at(x, opts.y or 0, z, yaw), style, opts)
 		end
 		-- Against wall `side` (N/S/E/W), `along` = position along that wall; front faces into the room.
 		function ctx.wall(kind, side, along, opts)
 			opts = opts or {}
 			local depth = CATALOG[kind].size.Z * (opts.scale or 1)
-			local d = FACE - depth / 2 - 0.05
+			local d = faceDist(room, side) - depth / 2 - 0.05
 			local x = if side == "W" then -d elseif side == "E" then d else along
 			local z = if side == "N" then -d elseif side == "S" then d else along
-			return makePiece(roomFolder, kind, room, at(x, opts.y or 0, z, WALL_YAW[side]), style, opts)
+			return makePiece(roomFolder, kind, roomId, at(x, opts.y or 0, z, WALL_YAW[side]), style, opts)
 		end
 		-- A picture or mirror hung on the wall.
 		function ctx.art(side, along, w, h, color, opts)
 			opts = opts or {}
 			opts.color = color
 			opts.size = V(w, h, 0.2)
-			local d = FACE - 0.25
+			local d = faceDist(room, side) - 0.25
 			local x = if side == "W" then -d elseif side == "E" then d else along
 			local z = if side == "N" then -d elseif side == "S" then d else along
 			local yaw = if side == "N" or side == "S" then 0 else 90
-			return makePiece(roomFolder, opts.kind or "painting", room, at(x, opts.y or 6.5, z, yaw), style, opts)
+			return makePiece(roomFolder, opts.kind or "painting", roomId, at(x, opts.y or 8, z, yaw), style, opts)
 		end
 		function ctx.rug(x, z, w, d, color)
-			return makePiece(roomFolder, "rug", room, at(x, 0, z, 0), style, { size = V(w, 0.07, d), color = color })
+			return makePiece(roomFolder, "rug", roomId, at(x, 0, z, 0), style, { size = V(w, 0.07, d), color = color })
 		end
 		ctx.size = Furniture.size
+		ctx.dist = function(side)
+			return faceDist(room, side)
+		end
 
-		FurnitureLayout.rooms[room](ctx)
+		FurnitureLayout.rooms[roomId](ctx)
 		roomFolder.Parent = folder
 	end
 
 	for _, node in graph.nodes do
 		if node.kind == "hide" then
-			makeHideSpot(folder:FindFirstChild(HouseDecor.THEMES[node.room].name), node, origin)
+			makeHideSpot(folder:FindFirstChild(HouseDecor.THEMES[node.room].name), node, origin, graph.rooms[node.room])
 		end
 	end
 

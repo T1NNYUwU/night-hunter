@@ -63,13 +63,19 @@ function Economy.start(ctx)
 		if flat.Magnitude < 1e-3 then
 			flat = Vector3.new(0, 0, -1)
 		end
-		local target = root.Position + flat.Unit * THROW_DISTANCE
-		local localPos = target - house.origin
-		local half = HouseGraph.ROOM_SIZE / 2 - 1
-		local maxX = (HouseGraph.COLS - 1) * HouseGraph.ROOM_SIZE + half
-		local maxZ = (HouseGraph.ROWS - 1) * HouseGraph.ROOM_SIZE + half
-		localPos = Vector3.new(math.clamp(localPos.X, -half, maxX), 0, math.clamp(localPos.Z, -half, maxZ))
-		local room = HouseGraph.roomAt(localPos)
+		-- Fly ahead along the floor the thrower stands on; stop short of the wall if it would leave the house.
+		local from = root.Position - house.origin
+		local floorY = HouseGraph.floorY(HouseGraph.roomAt(from) or HouseGraph.SPAWN_ROOM)
+		local localPos
+		for distance = THROW_DISTANCE, 2, -2 do
+			local p = from + flat.Unit * distance
+			localPos = Vector3.new(p.X, floorY, p.Z)
+			if HouseGraph.roomAt(localPos) then
+				break
+			end
+			localPos = nil
+		end
+		local room = localPos and HouseGraph.roomAt(localPos)
 		if not room then
 			return
 		end

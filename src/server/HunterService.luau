@@ -199,7 +199,7 @@ function HunterService.start(house, hooks)
 		hunter.charge = nil
 		hunter.dwell = 0
 		hunter.mode = "asleep"
-		hunter.waypoint = nil
+		hunter.route = nil
 		if model and model.PrimaryPart and model.PrimaryPart:FindFirstChild("Steps") then
 			model.PrimaryPart.Steps:Stop()
 		end
@@ -321,12 +321,12 @@ function HunterService.start(house, hooks)
 			-- Reflex: rush at a sound in this room or the next one. A sound in this room is
 			-- pinpointed; from next door it only knows the room.
 			local pos = if bestHops == 0 and best.pos then best.pos else origin + HouseGraph.roomCenter(best.room)
-			if not hunter.charge or hunter.charge.room ~= best.room then
-				hunter.waypoint = nil -- the old waypoint led toward a different room
+			if (not hunter.charge or hunter.charge.room ~= best.room) and hunter.route and hunter.route.kind == "door" then
+				hunter.route = nil -- the old route led toward a different room (a flight of stairs is finished first)
 			end
 			hunter.charge = {
 				room = best.room,
-				pos = Vector3.new(pos.X, origin.Y, pos.Z),
+				pos = Vector3.new(pos.X, origin.Y + HouseGraph.floorY(best.room), pos.Z),
 				untilTime = os.clock() + CHARGE_MEMORY,
 				hideNode = if bestHops == 0 then best.node else nil, -- heard WHICH spot: open it next
 			}
@@ -334,7 +334,6 @@ function HunterService.start(house, hooks)
 			hunter.path = nil
 		elseif not hunter.charge and not hunter.path and hunter.dwell <= 0 then
 			hunter.path = suspiciousSpot(room) or target
-			hunter.waypoint = nil
 		end
 
 		drawBelief()
@@ -351,33 +350,50 @@ function HunterService.start(house, hooks)
 		return Vector3.new(target.X - hunter.pos.X, 0, target.Z - hunter.pos.Z)
 	end
 
-	-- Walk toward a world point, always through room centres so it never cuts through walls.
-	-- A waypoint (own room centre, then the next room's centre) is kept until it is reached;
-	-- re-deciding every frame made it jitter at the edge of the "near the centre" radius.
+	-- Walk toward a world point. Between rooms the hunter follows a route: its own room's centre, then the
+	-- doorway (or up/down the staircase) into the next room. A route is kept until it is finished, so the
+	-- hunter never cuts through a wall, and the flight of stairs it is on is never abandoned halfway.
 	local function stepToward(goalRoom: number, goalPos: Vector3, speed: number, dt: number): boolean
 		local room = currentRoom()
-		local target
-		if room == goalRoom then
-			hunter.waypoint = nil
-			target = goalPos
-		else
-			if hunter.waypoint and flat(hunter.waypoint).Magnitude < 0.6 then
-				hunter.waypoint = nil
+		if not hunter.route and room ~= goalRoom then
+			local hop = HouseGraph.nextStep(graph, room, goalRoom)
+			local pts = {}
+			local centre = origin + HouseGraph.roomCenter(room)
+			if flat(centre).Magnitude > 1.5 then
+				table.insert(pts, centre)
 			end
-			if not hunter.waypoint then
-				local centre = origin + HouseGraph.roomCenter(room)
-				hunter.waypoint = if flat(centre).Magnitude > 1.5
-					then centre
-					else origin + HouseGraph.roomCenter(HouseGraph.nextStep(graph, room, goalRoom))
+			local kind = "door"
+			for _, p in HouseGraph.route(graph, room, hop, hunter.pos - origin) do
+				table.insert(pts, origin + p)
+				if math.abs(p.Y - graph.rooms[room].floorY) > 0.5 then
+					kind = "stairs"
+				end
 			end
-			target = hunter.waypoint
+			hunter.route = { pts = pts, i = 1, kind = kind }
 		end
-		local delta = flat(target)
-		if room == goalRoom and delta.Magnitude < 0.6 then
+
+		local target = goalPos
+		local route = hunter.route
+		if route then
+			while route.i <= #route.pts and (route.pts[route.i] - hunter.pos).Magnitude < 0.6 do
+				route.i += 1
+			end
+			if route.i > #route.pts then
+				hunter.route = nil
+				route = nil
+			else
+				target = route.pts[route.i]
+			end
+		end
+		if not route and room == goalRoom and flat(goalPos).Magnitude < 0.6 then
 			return true
 		end
+		local delta = target - hunter.pos
+		local ground = flat(target)
+		if ground.Magnitude > 1e-3 then
+			hunter.facing = ground.Unit
+		end
 		if delta.Magnitude > 1e-3 then
-			hunter.facing = delta.Unit
 			hunter.pos += delta.Unit * math.min(speed * dt, delta.Magnitude)
 		end
 		hunter.node = currentRoom()
@@ -422,7 +438,6 @@ function HunterService.start(house, hooks)
 				hunter.charge = nil
 				if spot then
 					hunter.path = spot -- it heard which spot: rip it open
-					hunter.waypoint = nil
 				else
 					hunter.dwell = LISTEN_SECONDS
 					hunter.dwellIsSearch = false

@@ -21,10 +21,12 @@ local Items = require(Shared:WaitForChild("Items"))
 local TitleScreen = require(script.Parent:WaitForChild("TitleScreen"))
 local ShopPanel = require(script.Parent:WaitForChild("ShopPanel"))
 local HideView = require(script.Parent:WaitForChild("HideView"))
+local FlashlightBeam = require(script.Parent:WaitForChild("FlashlightBeam"))
 local remotes = ReplicatedStorage:WaitForChild("NightHunterRemotes")
 local state = Workspace:WaitForChild("NightHunterState")
 
 player.CameraMode = Enum.CameraMode.LockFirstPerson
+FlashlightBeam.start() -- the light follows the camera, not the swinging hand
 -- The flashlight is a normal inventory item: Roblox's own hotbar shows it (press 1, or tap it).
 pcall(function()
 	game:GetService("StarterGui"):SetCoreGuiEnabled(Enum.CoreGuiType.Backpack, true)
@@ -447,6 +449,9 @@ while true do
 		if count > 0 then
 			table.insert(parts, ("%s x%d [%s]"):format(Items.list[id].name, count, Items.list[id].key))
 		end
+	end
+	if (player:GetAttribute("Relics") or 0) > 0 then
+		table.insert(parts, ("RELICS x%d: take them to the altar by the pillar"):format(player:GetAttribute("Relics")))
 	end
 	if player:GetAttribute("HasKey") then
 		table.insert(parts, "KEY: go to the front door!")

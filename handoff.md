@@ -1,7 +1,7 @@
 # Handoff — Night Hunter (7 Nights Hunter)
 
 > สำหรับคนหรือ AI ที่มารับงานต่อ อ่านไฟล์นี้ก่อน แล้วค่อยอ่าน [plan.md](plan.md) และ [docs/playable-v1.md](docs/playable-v1.md)
-> อัปเดตล่าสุด: 2026-10-08
+> อัปเดตล่าสุด: 2026-10-14
 
 ## โปรเจคนี้คืออะไร
 โปรเจคจบ ป.ตรี วิทยาการคอมพิวเตอร์ (ทีม 3 คน, เหลือเวลา ~2–3 เดือน): เกม Roblox co-op สยองขวัญ 1–4 คน รอดให้ครบ 7 คืนในบ้านร้าง
@@ -16,12 +16,13 @@
 - เสร็จ (2026-10-08): **M3** หน้าเริ่มเกม (PLAY / วิธีเล่น / สถิติ), ร้านค้าตอนกลางวัน + ไอเทม 3 อย่าง, เหรียญ, ภารกิจ 3 แบบ (ลัง / ฟิวส์ / กุญแจ + หนีออกประตูหน้า คืน 7), บันทึกความคืบหน้าด้วย DataStore
 - เสร็จ (2026-10-08): **M4 (ส่วนโค้ด)** POMCP, opponent model, telemetry, backend (`backend/`), ชุดทดลองในตัวจำลอง — ผลอยู่ใน [docs/m4-research.md](docs/m4-research.md)
 - เสร็จ (2026-10-09): **ระบบที่ซ่อนใหม่** ตู้ประตูเปิดปิดได้ + โต๊ะผ้าคลุม, แอบมอง, กลั้นหายใจ, เสียงเข้าที่ซ่อนบอกตำแหน่ง, ปีศาจค้นเมื่อสงสัย — [docs/hiding.md](docs/hiding.md); ไฟล์ deploy Render: `render.yaml` + [docs/deploy.md](docs/deploy.md)
+- เสร็จ (2026-10-14): **rework แมพเป็นคฤหาสน์ 3 ชั้น** (17 ห้อง, โถงสูง 2 ชั้น บันได 2 ทาง, ใต้ดิน), คืน 7 = เก็บของ→วางที่เสากลาง→กุญแจ→ประตูหน้า, มืดลง, ไฟฉายสว่างขึ้นและไม่แกว่ง — [docs/mansion.md](docs/mansion.md)
 - ยังไม่ทำ: deploy backend + เปิด HttpService + playtest กับคนจริง ([docs/playtest.md](docs/playtest.md))
 
 ## โครงสร้างไฟล์ (Rojo project: `default.project.json`)
 | ที่อยู่ | ใน Studio | หน้าที่ |
 |---|---|---|
-| `src/shared/HouseGraph.luau` | ReplicatedStorage.NightHunter | กราฟบ้าน (ห้อง + ตู้), ระยะทาง, ลายเซ็นของ layout |
+| `src/shared/HouseGraph.luau` | ReplicatedStorage.NightHunter | **ผังคฤหาสน์เป็นข้อมูล** (สี่เหลี่ยมห้อง 3 ชั้น, ประตู, บันได, ที่ซ่อน), กราฟ, ระยะทาง, `roomAt` (รู้ชั้น), `route`, ลายเซ็นของ layout |
 | `src/shared/ParticleFilter.luau` | 〃 | particle filter ต่อผู้เล่นหนึ่งคน |
 | `src/shared/HunterBrain.luau` | 〃 | สมอง `belief` และ `rule` (ใช้ทั้งในเกมและตัวจำลอง) |
 | `src/shared/Sim.luau` | 〃 | ตัวจำลองไม่มีภาพ + บอท + ตารางเปรียบเทียบ |
@@ -39,13 +40,15 @@
 | `src/server/Economy.luau` | 〃 | เหรียญ, ซื้อของ (กลางวัน), ใช้ของ (กลางคืน): Noise Maker / Battery / Adrenaline |
 | `src/server/Progress.luau` | 〃 | DataStore: คืนที่ไปได้ไกลสุด + จำนวนครั้งที่หนีรอด |
 | `src/server/HunterService.luau` | 〃 | ปีศาจในเกมจริง: ประสาทสัมผัส, เดิน, จับ |
-| `src/server/HouseBuilder.luau` | 〃 | สร้าง **Shell** (พื้น กำแพง วงกบ+ประตู) และเรียกสร้างเฟอร์นิเจอร์; แสงตอนรัน; รัง; `ensure()` (ไม่แตะเฟอร์นิเจอร์ที่ทีมแก้) |
-| `src/server/HouseDecor.luau` | 〃 | ธีมห้อง, ฉาบผนัง, หน้าต่าง, เพดาน+โคมไฟ, ประตูหน้า, รังปีศาจ (ส่วนของ Shell) |
+| `src/server/HouseGeometry.luau` | 〃 | คำนวณกำแพง/ประตู/พื้นเจาะช่องจาก HouseGraph |
+| `src/server/HouseBuilder.luau` | 〃 | สร้าง **Shell** (พื้น เพดาน กำแพง วงกบ+ประตู บันได ราว) และเรียกสร้างเฟอร์นิเจอร์; แสงตอนรัน; รัง; `ensure()` (ไม่แตะเฟอร์นิเจอร์ที่ทีมแก้) |
+| `src/server/HouseDecor.luau` | 〃 | ธีมห้อง, ฉาบผนัง, หน้าต่าง, เพดาน+โคมไฟ, ประตูหน้า, **เสากลางโถง + แท่น**, รังปีศาจ (ส่วนของ Shell) |
 | `src/server/HouseKit.luau` | 〃 | เครื่องมือสร้างร่วม (box, light, สี) + ค่าความสว่างของโคมทั้งบ้านที่เดียว |
 | `src/server/Furniture.luau` | 〃 | เฟอร์นิเจอร์: แคตตาล็อกบล็อกหยาบ, สร้างทีละชิ้นเป็นโมเดลเดี่ยว, ที่ซ่อน, `seed()` |
 | `src/server/FurnitureLayout.luau` | 〃 | **ผังเฟอร์นิเจอร์เริ่มต้น** ต่อห้อง (ชนิด ตำแหน่ง หมุน) |
 | `src/server/PlayerKit.luau` | 〃 | ท่าทาง/ความเร็ว/สตามินา, ไฟฉาย + แบตเตอรี่ |
 | `src/client/Client.client.luau` | StarterPlayerScripts.NightHunter | มุมมองบุรุษที่ 1, ปุ่มควบคุม, HUD, jumpscare, ขอบจอแดง, ลำแสงไฟฉายของตัวเอง, ไฟกะพริบ |
+| `src/client/FlashlightBeam.luau` | 〃 | ลำแสงไฟฉายของตัวเองติดกับกล้อง (ไม่แกว่งตามท่าเดิน) |
 | `src/client/TitleScreen.luau` | 〃 | หน้าเริ่มเกม: PLAY, วิธีเล่น, สถิติที่บันทึกไว้ |
 | `src/client/ShopPanel.luau` | 〃 | ร้านค้าตอนกลางวัน (ปุ่ม V / SHOP) |
 | `src/client/HideView.luau` | 〃 | มุมมองตอนซ่อน (ช่องประตู/ใต้ผ้า), แถบหายใจ + ความสงสัย, ปุ่ม LEAVE/BREATH |
@@ -64,9 +67,12 @@
 - **เฟอร์นิเจอร์อยู่ในไฟล์แมพ ไม่ใช่ใน git** (ทีมย้ายด้วยมือได้) `ensure()` จะไม่ตัดสินใจแทน ถ้ากราฟเปลี่ยนจนที่ซ่อนไม่ตรง เกมจะเตือนใน Output ให้ reseed
 - `UIGradient.Transparency` บน Frame ทึบทำให้เห็นฉากทะลุ (เคยทำให้บานประตูตอนซ่อนโปร่ง) → ใช้ Frame ทึบ ๆ แทน
 - **ไฟฉายเป็นไอเทม (Tool)**: `StarterPack.Flashlight` อยู่ในไฟล์แมพ (ไม่อยู่ใน git) อยู่ใน **ช่องเก็บของ** ของผู้เล่นทุกคน (กด 1 ถือ, คลิกเปิด/ปิดไฟ; ไม่มีปุ่ม F แล้ว) ประกอบด้วย `Handle` (เมชไฟฉายดำ) + `Beam` (แกนแคบ 24°) + `Halo` (รัศมีจาง 48°) + `Click` (เสียง) **ไม่มีสคริปต์** — `PlayerKit.luau` เปิด/ปิดไฟกับแบตให้ แก้หน้าตา/แสงได้ใน Studio ตรง ๆ (ถ้าไม่มี Tool นี้ในแมพ PlayerKit สร้างอันง่าย ๆ ให้เอง) Tool อื่นที่เอามาใส่ StarterPack จะถูกลบทิ้งตอนเกิด
+- ไฟฉายไม่แกว่ง: `FlashlightBeam.luau` ปิดไฟของ Tool ฝั่งเครื่องตัวเอง แล้วใช้สำเนาไฟที่ติดกับกล้องแทน (ค่า Beam/Halo อ่านจาก Tool เดิม แก้ที่ `StarterPack.Flashlight.Handle` ได้) ปัจจุบัน Beam 12 ระยะ 80 / Halo 2.2 ระยะ 45
 - ไฟฉาย: Roblox SpotLight ไม่มีขอบนุ่ม กรวยกว้างเดียวส่องผนังทั้งห้อง (24 studs) จอขาว → ใช้แกนแคบ + รัศมีจาง และ `PlayerKit` ตั้ง `CastShadow=false` ให้ตัวละคร ไม่งั้นแขนบังกรวย
 - ของที่ทีมหามาลองจาก Creator Store เก็บไว้ที่ `ServerStorage.Reference_Flashlights` (ลบสคริปต์แล้ว) ไม่ได้ใช้งานจริง: ไฟฉาย 3 แบบ + dummy ที่มี KeyframeSequence R6 (`AnimSaves`: CF, Hf) ตัวละครเกมเป็น **R15** เล่นของ R6 ตรง ๆ ไม่ได้
 - หน้า Title เคยทึบ 92% ทำให้ "เริ่มเกมแล้วมืดทั้งจอ" ตอนนี้โปร่ง 50% และกลางวัน/กลางคืนใช้แสงต่างกัน (`NightCycle.setMood`)
+- **จับภาพจอด้วย MCP ได้ภาพขาวเมื่อหน้าต่าง Studio ถูกบัง/ไม่โฟกัส** (เกิดซ้ำตอนทดสอบแมพใหม่) และ `ProximityPrompt:InputHoldBegin` จากสคริปต์ทดสอบก็หยุดทำงานในช่วงนั้น ให้เปิด Studio ให้เห็นก่อนทดสอบหน้าตา
+- ผังบ้านเปลี่ยน → ต้องสร้างบ้านในแมพใหม่ (`HB.build(graph, { furniture = "reseed" })`) แล้ว Save/Publish; ถ้าไม่ทำ เกมจะสร้าง Shell ใหม่ให้ตอนรันและเตือนใน Output
 - **ห้ามใช้ MCP `screen_capture` แบบกำหนดตำแหน่งกล้องในโหมด Edit** ถ้าหมดเวลากลางคัน กล้องจะเสียและติดไปกับไฟล์ แก้โดยลบ `Workspace.Camera` แล้ว Save (รายละเอียดใน plan.md หัวข้อ 10.1)
 - `require()` ในโหมด Edit จะ cache โมดูลรุ่นเก่า ให้ `:Clone()` โฟลเดอร์ก่อน require
 - `HouseBuilder.build()` ห้ามตั้งแสง (โหมด Edit จะมืด) แสงกลางคืนตั้งใน `ensure()` ตอนรันเท่านั้น

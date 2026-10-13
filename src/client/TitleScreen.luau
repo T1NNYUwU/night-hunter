@@ -17,7 +17,8 @@ The hunter is BLIND. It hunts by sound.
   · Hide in a wardrobe if it comes close.
 
 Every night has a job: collect crates, fix fuse boxes,
-and on night 7 find the key and leave by the front door.
+and on night 7 find the relics, put them on the altar by the
+pillar, take the key and leave through the front door.
 Doing the job is loud. Plan your route during the day —
 you can see which room the hunter sleeps in.
 

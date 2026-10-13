@@ -38,7 +38,7 @@ git checkout -b feature/ชื่อสิ่งที่ทำ
 โครงสร้างใน `Workspace.NightHunterHouse`:
 ```
 NightHunterHouse
-├─ Shell        พื้น กำแพง วงกบ+ประตู ฉาบผนัง เพดาน หน้าต่าง โคมไฟ   ← สร้างจากโค้ด อย่าแก้ด้วยมือ
+├─ Shell        พื้น เพดาน กำแพง วงกบ+ประตู บันได ราว ฉาบผนัง หน้าต่าง โคมไฟ เสากลางโถง   ← สร้างจากโค้ด อย่าแก้ด้วยมือ
 ├─ Furniture    เฟอร์นิเจอร์ทุกชิ้น แยกเป็นโมเดลเดี่ยว จัดตามห้อง    ← แก้ได้เต็มที่
 │   └─ Kitchen / Library / ...   (ชื่อห้อง)
 │        └─ Bed, Chair, Drawer, Hiding wardrobe, ...
@@ -62,6 +62,7 @@ HB.build(graph)  -- สร้างกำแพง/ประตู/แสงใ�
 copy:Destroy() rs.Parent = game.ReplicatedStorage
 ```
 - ใส่ `HB.build(graph, { furniture = "reseed" })` = **ล้างเฟอร์นิเจอร์ทั้งหมดกลับเป็นผังเริ่มต้น** (การแก้ด้วยมือหายหมด)
+- ผังบ้าน (ห้อง ชั้น ประตู บันได ที่ซ่อน) อยู่ที่ `src/shared/HouseGraph.luau` อ่านภาพรวมที่ [mansion.md](mansion.md)
 - ผังเริ่มต้นอยู่ที่ `src/server/FurnitureLayout.luau` (ตำแหน่ง/ชนิด ต่อห้อง) ชนิดที่มีอยู่ดูที่ `Furniture.luau`
 
 ## 6. โหมดสงบ: ปิดผีและเพลงตอนแก้แมพ

@@ -1,13 +1,13 @@
 --!nonstrict
 -- Small building blocks shared by the house shell (HouseDecor) and the furniture (Furniture).
--- Coordinates are room-local: room centre = 0,0,0, floor top = y 0, inner wall faces at ±11.5.
+-- Coordinates are room-local: the room's centre point (HouseGraph room.center) = 0,0,0, floor top = y 0.
 
 local CollectionService = game:GetService("CollectionService")
 local ServerStorage = game:GetService("ServerStorage")
 
 local HouseKit = {}
 
-HouseKit.FACE = 11.5 -- inner wall face, room-local
+HouseKit.WALL_FACE = 0.5 -- the wall's inner face is this far inside the room rectangle's edge
 -- Yaw that turns a -Z-facing model so its front faces into the room from wall `side`.
 HouseKit.WALL_YAW = { N = 180, S = 0, W = -90, E = 90 }
 
@@ -24,11 +24,12 @@ HouseKit.WARM_LIGHT = Color3.fromRGB(255, 196, 140)
 HouseKit.MOON_LIGHT = Color3.fromRGB(150, 175, 255)
 
 -- Light levels (horror: dim). One place to tune the whole house.
-HouseKit.LAMP_BRIGHTNESS = 0.32
-HouseKit.LAMP_RANGE = 16
-HouseKit.CHANDELIER_BRIGHTNESS = 0.45
-HouseKit.CANDLE_BRIGHTNESS = 0.45
-HouseKit.WINDOW_BRIGHTNESS = 0.55
+HouseKit.LAMP_BRIGHTNESS = 0.22
+HouseKit.LAMP_RANGE = 24
+HouseKit.CHANDELIER_BRIGHTNESS = 0.34
+HouseKit.CHANDELIER_RANGE = 34
+HouseKit.CANDLE_BRIGHTNESS = 0.38
+HouseKit.WINDOW_BRIGHTNESS = 0.3
 
 function HouseKit.box(parent, name, size, cf, color, material, collide)
 	local p = Instance.new("Part")

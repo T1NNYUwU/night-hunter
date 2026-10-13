@@ -36,6 +36,7 @@ Items.REWARD = {
 	crate = 10,
 	fuse = 12,
 	key = 15,
+	relic = 12,
 	nightSurvived = 15,
 }
 

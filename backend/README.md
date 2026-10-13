@@ -44,7 +44,7 @@ Daily training job (cron, Render cron, GitHub Action…): `uv run python -m app.
 ## Data and privacy
 
 No Roblox user ids or names are sent. Players are `p1`..`p4` inside one run; a run id is a
-random GUID. Each night holds the graph node of every player every 0.5 s (32 possible nodes),
+random GUID. Each night holds the graph node of every player every 0.5 s (41 possible nodes),
 the hunter's room, and a few events (down, revive, objective, item, escape).
 
 ## Checks that keep the game and the backend in sync
