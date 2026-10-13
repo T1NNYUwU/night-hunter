@@ -2,6 +2,9 @@
 -- Everything a survivor carries and how they move, decided on the server:
 --   stance   walk / sprint (stamina) / crouch → WalkSpeed. The client only asks for a stance.
 --   flashlight  a Tool with a SpotLight; toggled by clicking it or pressing F; drains a battery.
+--               It is StarterPack.Flashlight (made in Studio: a Handle with a SpotLight, no scripts), so the
+--               team can change how it looks; the engine hands one to every spawn. A place without one
+--               gets a plain built one (buildFlashlight).
 -- How LOUD a player is is not decided here: HunterService measures real movement speed.
 --
 -- Attributes on each Player (read by the HUD):
@@ -100,8 +103,22 @@ function PlayerKit.start(hooks)
 		end
 		player:SetAttribute("Flashlight", on)
 		if tool then
-			tool.Handle.Beam.Enabled = on
-			tool.Lens.Material = if on then Enum.Material.Neon else Enum.Material.Glass
+			local handle = tool:FindFirstChild("Handle")
+			if handle then
+				for _, light in handle:GetChildren() do
+					if light:IsA("SpotLight") then
+						light.Enabled = on -- the narrow core and the dim halo
+					end
+				end
+				local click = handle:FindFirstChild("Click")
+				if click then
+					click:Play()
+				end
+			end
+			local lens = tool:FindFirstChild("Lens")
+			if lens then
+				lens.Material = if on then Enum.Material.Neon else Enum.Material.Glass
+			end
 		end
 	end
 
@@ -121,12 +138,32 @@ function PlayerKit.start(hooks)
 		local humanoid = character:WaitForChild("Humanoid")
 		humanoid.JumpHeight = JUMP_HEIGHT
 		humanoid.WalkSpeed = Acoustics.SPEED.walk
-		local tool = buildFlashlight()
+		-- The engine clones StarterPack tools into the Backpack on every spawn.
+		local tool = player.Backpack:WaitForChild("Flashlight", 3)
+		if not tool then
+			tool = buildFlashlight()
+			tool.Parent = player.Backpack
+		end
+		for _, extra in player.Backpack:GetChildren() do
+			if extra:IsA("Tool") and extra ~= tool then
+				extra:Destroy() -- one item: the flashlight (other kits left in StarterPack would add scripts)
+			end
+		end
 		tool.Activated:Connect(function()
 			toggleLight(player)
 		end)
-		tool.Parent = player.Backpack
 		humanoid:EquipTool(tool)
+		-- The hand and the torch sit right at the light: if they cast shadows they black out the beam.
+		for _, d in character:GetDescendants() do
+			if d:IsA("BasePart") then
+				d.CastShadow = false
+			end
+		end
+		character.DescendantAdded:Connect(function(d)
+			if d:IsA("BasePart") then
+				d.CastShadow = false
+			end
+		end)
 		setLight(player, false)
 	end
 
