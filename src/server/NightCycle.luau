@@ -192,10 +192,10 @@ function NightCycle.start(house)
 	readyRemote.Name = "Ready"
 	readyRemote.Parent = ReplicatedStorage:WaitForChild("NightHunterRemotes")
 
-	-- Tonight's lair: any room at least 2 rooms from the spawn, never the same room twice in a row.
+	-- Tonight's lair: any room (not a corridor) at least 2 rooms from the spawn, never the same room twice in a row.
 	local lairOptions = {}
 	for room = 1, graph.roomCount do
-		if graph.dist[HouseGraph.SPAWN_ROOM][room] >= 2 then
+		if graph.dist[HouseGraph.SPAWN_ROOM][room] >= 2 and graph.rooms[room].kind ~= "passage" then
 			table.insert(lairOptions, room)
 		end
 	end
@@ -309,8 +309,9 @@ function NightCycle.start(house)
 	-- A spot on the floor of `room` clear of its stairwell: a world position at floor height + lift.
 	local function floorPoint(room: number, lift: number): Vector3
 		local r = graph.rooms[room]
-		local spread = if #r.holes > 0 then 4 else 12
-		return origin + Vector3.new(r.center.X + rng:NextNumber(-spread, spread), r.floorY + lift, r.center.Z + rng:NextNumber(-spread, spread))
+		local sx = math.clamp(math.min(r.center.X - r.x0, r.x1 - r.center.X) - 4, 1, if #r.holes > 0 then 4 else 12)
+		local sz = math.clamp(math.min(r.center.Z - r.z0, r.z1 - r.center.Z) - 3, 0.5, if #r.holes > 0 then 4 else 12)
+		return origin + Vector3.new(r.center.X + rng:NextNumber(-sx, sx), r.floorY + lift, r.center.Z + rng:NextNumber(-sz, sz))
 	end
 
 	local function spawnCrates(count: number)

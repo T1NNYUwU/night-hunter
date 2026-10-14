@@ -30,7 +30,7 @@ local CLEAR = HouseGraph.CLEAR
 local LEVEL = HouseGraph.LEVEL_HEIGHT
 
 local HouseDecor = {}
-HouseDecor.VERSION = 11 -- bump when the shell finish changes, so a saved shell gets rebuilt
+HouseDecor.VERSION = 12 -- bump when the shell finish changes, so a saved shell gets rebuilt
 
 -- Pillar and altar: where the last night's relics go. Local to the house, at the hall's floor.
 HouseDecor.PILLAR_POS = V(0, 0, 21)
@@ -57,28 +57,36 @@ HouseDecor.THEMES = {
 	[4] = { name = "Study", paper = PAPER.grey, tint = Color3.fromRGB(120, 108, 96), floor = WOOD, floorMat = Enum.Material.WoodPlanks },
 	[5] = { name = "Ballroom", paper = PAPER.floral, tint = Color3.fromRGB(130, 112, 96), floor = Color3.fromRGB(58, 38, 30), floorMat = Enum.Material.WoodPlanks },
 	[6] = { name = "Kitchen", stone = true, wall = Color3.fromRGB(150, 146, 128), wallMat = Enum.Material.CeramicTiles, floor = Color3.fromRGB(110, 108, 100), floorMat = Enum.Material.Slate },
-	[7] = { name = "Landing", stone = true, wall = Color3.fromRGB(118, 98, 82), wallMat = SAND, floor = Color3.fromRGB(84, 38, 34), floorMat = Enum.Material.WoodPlanks },
-	[8] = { name = "Gallery", paper = PAPER.maroon, tint = Color3.fromRGB(120, 100, 104), floor = WOOD_DARK, floorMat = Enum.Material.WoodPlanks },
-	[9] = { name = "Guest Bedroom", paper = PAPER.grey, tint = Color3.fromRGB(118, 118, 128), floor = WOOD_LIGHT, floorMat = Enum.Material.WoodPlanks },
-	[10] = { name = "Bathroom", stone = true, wall = Color3.fromRGB(112, 132, 124), wallMat = Enum.Material.CeramicTiles, floor = Color3.fromRGB(150, 152, 148), floorMat = Enum.Material.Marble },
-	[11] = { name = "Nursery", paper = PAPER.pink, tint = Color3.fromRGB(150, 128, 130), floor = WOOD_LIGHT, floorMat = Enum.Material.WoodPlanks },
-	[12] = { name = "Master Bedroom", paper = PAPER.blue, tint = Color3.fromRGB(104, 110, 132), floor = WOOD, floorMat = Enum.Material.WoodPlanks },
-	[13] = { name = "Boiler Room", stone = true, wall = Color3.fromRGB(70, 66, 64), wallMat = Enum.Material.Concrete, floor = Color3.fromRGB(62, 60, 58), floorMat = Enum.Material.Concrete },
-	[14] = { name = "Wine Cellar", stone = true, wall = Color3.fromRGB(88, 62, 52), wallMat = Enum.Material.Brick, floor = Color3.fromRGB(70, 66, 62), floorMat = Enum.Material.Cobblestone },
-	[15] = { name = "Cold Storage", stone = true, wall = Color3.fromRGB(78, 88, 92), wallMat = Enum.Material.Slate, floor = Color3.fromRGB(70, 78, 82), floorMat = Enum.Material.Slate },
-	[16] = { name = "Crypt", stone = true, wall = Color3.fromRGB(64, 64, 68), wallMat = Enum.Material.Cobblestone, floor = Color3.fromRGB(56, 56, 60), floorMat = Enum.Material.Slate },
-	[17] = { name = "Coal Cellar", stone = true, wall = Color3.fromRGB(46, 44, 44), wallMat = Enum.Material.Concrete, floor = Color3.fromRGB(36, 34, 34), floorMat = Enum.Material.Basalt },
+	[7] = { name = "Conservatory", stone = true, wall = Color3.fromRGB(70, 84, 78), wallMat = Enum.Material.Glass, floor = Color3.fromRGB(96, 96, 92), floorMat = Enum.Material.Marble },
+	[8] = { name = "Servants' Hall", stone = true, wall = Color3.fromRGB(116, 108, 92), wallMat = Enum.Material.Plaster, floor = WOOD, floorMat = Enum.Material.WoodPlanks },
+	[9] = { name = "Main Corridor", paper = PAPER.maroon, tint = Color3.fromRGB(120, 100, 100), floor = WOOD_DARK, floorMat = Enum.Material.WoodPlanks },
+	[10] = { name = "Landing", stone = true, wall = Color3.fromRGB(118, 98, 82), wallMat = SAND, floor = Color3.fromRGB(84, 38, 34), floorMat = Enum.Material.WoodPlanks },
+	[11] = { name = "Upper Corridor", paper = PAPER.grey, tint = Color3.fromRGB(110, 106, 110), floor = WOOD_DARK, floorMat = Enum.Material.WoodPlanks },
+	[12] = { name = "Sitting Room", paper = PAPER.floral, tint = Color3.fromRGB(128, 110, 100), floor = WOOD, floorMat = Enum.Material.WoodPlanks },
+	[13] = { name = "Master Bedroom", paper = PAPER.blue, tint = Color3.fromRGB(104, 110, 132), floor = WOOD, floorMat = Enum.Material.WoodPlanks },
+	[14] = { name = "Bathroom", stone = true, wall = Color3.fromRGB(112, 132, 124), wallMat = Enum.Material.CeramicTiles, floor = Color3.fromRGB(150, 152, 148), floorMat = Enum.Material.Marble },
+	[15] = { name = "Guest Bedroom", paper = PAPER.green, tint = Color3.fromRGB(112, 120, 116), floor = WOOD_LIGHT, floorMat = Enum.Material.WoodPlanks },
+	[16] = { name = "Nursery", paper = PAPER.pink, tint = Color3.fromRGB(150, 128, 130), floor = WOOD_LIGHT, floorMat = Enum.Material.WoodPlanks },
+	[17] = { name = "Portrait Gallery", paper = PAPER.maroon, tint = Color3.fromRGB(120, 100, 104), floor = WOOD_DARK, floorMat = Enum.Material.WoodPlanks },
+	[18] = { name = "Maid's Room", stone = true, wall = Color3.fromRGB(108, 102, 90), wallMat = Enum.Material.Plaster, floor = WOOD_LIGHT, floorMat = Enum.Material.WoodPlanks },
+	[19] = { name = "Service Tunnel", stone = true, wall = Color3.fromRGB(74, 58, 50), wallMat = Enum.Material.Brick, floor = Color3.fromRGB(60, 58, 56), floorMat = Enum.Material.Concrete },
+	[20] = { name = "Boiler Room", stone = true, wall = Color3.fromRGB(70, 66, 64), wallMat = Enum.Material.Concrete, floor = Color3.fromRGB(62, 60, 58), floorMat = Enum.Material.Concrete },
+	[21] = { name = "Wine Cellar", stone = true, wall = Color3.fromRGB(88, 62, 52), wallMat = Enum.Material.Brick, floor = Color3.fromRGB(70, 66, 62), floorMat = Enum.Material.Cobblestone },
+	[22] = { name = "Laundry", stone = true, wall = Color3.fromRGB(96, 100, 104), wallMat = Enum.Material.Plaster, floor = Color3.fromRGB(78, 80, 82), floorMat = Enum.Material.Slate },
+	[23] = { name = "Catacombs", stone = true, wall = Color3.fromRGB(58, 54, 50), wallMat = Enum.Material.Cobblestone, floor = Color3.fromRGB(48, 46, 44), floorMat = Enum.Material.Basalt },
+	[24] = { name = "Crypt", stone = true, wall = Color3.fromRGB(64, 64, 68), wallMat = Enum.Material.Cobblestone, floor = Color3.fromRGB(56, 56, 60), floorMat = Enum.Material.Slate },
+	[25] = { name = "Cold Storage", stone = true, wall = Color3.fromRGB(78, 88, 92), wallMat = Enum.Material.Slate, floor = Color3.fromRGB(70, 78, 82), floorMat = Enum.Material.Slate },
 }
 
 -- Rooms whose ceiling light still works. Everywhere else the bulb is dead: candles, moonlight and your
 -- flashlight are all there is, and the dark between them is where the fear lives.
-local LIT_ROOMS = { [7] = true, [3] = true, [6] = true, [12] = true, [13] = true, [8] = true }
+local LIT_ROOMS = { [10] = true, [3] = true, [6] = true, [8] = true, [17] = true, [20] = true, [22] = true }
 -- Lights that flicker (picked by hand so the house has a rhythm, not noise).
-local FLICKER_ROOMS = { [6] = true, [8] = true, [13] = true, [3] = true }
+local FLICKER_ROOMS = { [6] = true, [17] = true, [20] = true, [22] = true }
 -- Rooms lit by a chandelier instead of a pendant lamp.
-local CHANDELIER_ROOMS = { [7] = true, [3] = true, [5] = true, [12] = true }
+local CHANDELIER_ROOMS = { [10] = true, [3] = true, [5] = true, [13] = true }
 -- Windows that are boarded up (by room): the rest have curtains.
-local BOARDED = { [4] = true, [6] = true, [11] = true }
+local BOARDED = { [4] = true, [6] = true, [16] = true, [18] = true }
 
 local PLASTER = Color3.fromRGB(84, 76, 66)
 local GRIME = Color3.fromRGB(26, 20, 16)
@@ -225,7 +233,7 @@ end
 -- planks nailed across. The first window of a room lets in a faint cold moonbeam.
 local function windowsOn(m, origin, seg, room, theme, withMoon: boolean)
 	local dir = Geometry.faceDir(seg, room.id)
-	local big = room.id == 7 -- the landing's great window over the front door
+	local big = room.id == 10 -- the landing's great window over the front door
 	local count = if big then 1 else math.max(1, math.floor((seg.hi - seg.lo) / 14))
 	local look = V(if seg.axisX then 0 else dir, 0, if seg.axisX then dir else 0)
 	local rng = Random.new(room.id * 77 + math.floor(seg.lo))
@@ -316,8 +324,8 @@ local function ceilingLight(m, origin, room)
 	local flicker = FLICKER_ROOMS[room.id]
 	if CHANDELIER_ROOMS[room.id] then
 		local template = HouseKit.libraryModel("Chandelier")
-		local scale = if room.id == 7 then 1.2 else 0.75
-		local drop = if room.id == 7 then 5 else 1.5 -- the hall's chandelier hangs from a long chain
+		local scale = if room.id == 10 then 1.4 else 0.75
+		local drop = if room.id == 10 then 5 else 1.5 -- the hall's chandelier hangs from a long chain
 		local h = 5
 		if template then
 			h = (template:GetAttribute("Size") or V(0, 8.7, 0)).Y * scale
@@ -584,8 +592,8 @@ function HouseDecor.decorate(shell: Instance, graph, origin: Vector3, segments)
 		m.Parent = shell
 	end
 	hallCentre(shell, origin)
-	-- high on the west wall of the hall, above the stairs, seen from the front door
-	scrawl(shell, origin, "IT HEARS YOU", V(-20.85, LEVEL + 7, 29), V(1, 0, 0), 14)
+	-- on the west wall of the hall by the front door: the first thing you see when you come in
+	scrawl(shell, origin, "IT HEARS YOU", V(-31.3, 9.5, 58), V(1, 0, 0), 14)
 	CollectionService:AddTag(shell, "NightHunterShell")
 end
 

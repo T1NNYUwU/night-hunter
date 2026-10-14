@@ -30,7 +30,7 @@ local HouseGeometry = require(script.Parent.HouseGeometry)
 local Furniture = require(script.Parent.Furniture)
 
 local HOUSE_NAME = "NightHunterHouse"
-local LAYOUT = 4 -- house structure version: 4 = the roomy three-floor mansion (older houses are rebuilt whole)
+local LAYOUT = 5 -- house structure version: 5 = the corridor mansion (older houses are rebuilt whole)
 local ORIGIN = Vector3.new(0, 50, 0)
 local LEVEL = HouseGraph.LEVEL_HEIGHT
 local CLEAR = HouseGraph.CLEAR
@@ -47,13 +47,25 @@ local V = Vector3.new
 -- Railings around stairwells: { x1, z1, x2, z2, floorY } (house-local). The openings stay open where
 -- the stairs arrive.
 local RAILS = {
-	{ -22, 14, -14.5, 14, LEVEL }, -- the landing balcony: three stretches, open where the two curved
-	{ -5.5, 14, 5.5, 14, LEVEL }, --   hall staircases arrive
-	{ 14.5, 14, 22, 14, LEVEL },
-	{ -49, -28, -49, -4, 0 }, -- study stairwell, east edge
-	{ -56, -4, -49, -4, 0 }, -- study stairwell, south edge
-	{ 49, -28, 49, -4, 0 }, -- kitchen stairwell, west edge
-	{ 49, -4, 56, -4, 0 }, -- kitchen stairwell, south edge
+	-- the balcony at the back of the hall: open where the two curved staircases arrive
+	{ -26, 14, -15.5, 14, LEVEL },
+	{ -8.5, 14, 8.5, 14, LEVEL },
+	{ 15.5, 14, 26, 14, LEVEL },
+	-- the narrow galleries down each side of the hall, and their ends
+	{ -26, 14, -26, 48, LEVEL },
+	{ 26, 14, 26, 48, LEVEL },
+	{ -32, 48, -26, 48, LEVEL },
+	{ 26, 48, 32, 48, LEVEL },
+	-- the servants' back stair: the hole in the servants' hall (top reached from the north end) ...
+	{ 61, -44, 61, -16, 0 },
+	{ 61, -16, 67, -16, 0 },
+	-- ... and the hole in the maid's room (top reached from the south end)
+	{ 54, -44, 54, -16, LEVEL },
+	{ 60, -44, 60, -16, LEVEL },
+	{ 54, -44, 60, -44, LEVEL },
+	-- the secret stair in the library (reached from the west end, by the bookcases)
+	{ -60, 26.5, -40, 26.5, 0 },
+	{ -40, 21.5, -40, 26.5, 0 },
 }
 
 local HouseBuilder = {}
@@ -233,18 +245,23 @@ local function buildStairs(parent, graph, s)
 			end
 		end
 	end
-	-- balustrades: a straight flight against a wall only needs one on the side toward the room
-	local sides = if s.cx then { -1, 1 } else { if low.center.X < s.lx then -1 else 1 }
-	local railPath = HouseGraph.stairPath(s, if s.cx then 8 else 1)
+	-- balustrades: a straight flight against a wall only needs one, on the side toward the room
+	local first, last = path[1], path[#path]
+	local runDir = (last - first).Unit
+	local perp = V(-runDir.Z, 0, runDir.X)
+	local toRoom = V(low.center.X - first.X, 0, low.center.Z - first.Z)
+	local sides = if s.cx then { -1, 1 } else { if toRoom:Dot(perp) >= 0 then 1 else -1 }
+	local segments = if s.cx then 8 else 4
+	local railPath = HouseGraph.stairPath(s, segments)
+	local upTo = math.max(1, math.floor(segments * (s.railTo or 1) + 0.5))
 	for _, side in sides do
-		for k = 1, #railPath - 1 do
+		for k = 1, upTo do
 			local a, b = railPath[k], railPath[k + 1]
 			local dir = (b - a).Unit
-			local across = if s.cx then V(-dir.Z, 0, dir.X) * side else V(side, 0, 0)
-			local offset = across * (s.width / 2 - 0.25)
-			local ya = yLow + (yHigh - yLow) * (k - 1) / (#railPath - 1)
-			local yb = yLow + (yHigh - yLow) * k / (#railPath - 1)
-			balustrade(parent, a + offset + V(0, ya, 0), b + offset + V(0, yb, 0), 4.4, k == 1, k == #railPath - 1)
+			local offset = V(-dir.Z, 0, dir.X) * side * (s.width / 2 - 0.25)
+			local ya = yLow + (yHigh - yLow) * (k - 1) / segments
+			local yb = yLow + (yHigh - yLow) * k / segments
+			balustrade(parent, a + offset + V(0, ya, 0), b + offset + V(0, yb, 0), 4.4, k == 1, k == upTo)
 		end
 	end
 end
@@ -390,7 +407,7 @@ function HouseBuilder.build(graph, opts)
 	spawn.Neutral = true
 	spawn.Duration = 0
 	spawn.Size = V(5, 0.4, 5)
-	spawn.Position = ORIGIN + V(0, 0.2, 49) -- in the open front of the hall, inside the front door
+	spawn.Position = ORIGIN + V(0, 0.2, 60) -- in the open front of the hall, inside the front door
 	spawn.Color = Color3.fromRGB(70, 110, 160)
 	spawn.Transparency = 0.6
 	spawn.Parent = root

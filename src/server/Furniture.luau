@@ -4,7 +4,7 @@
 -- baked into the room, and rebuilding the house shell never touches this folder.
 --
 -- A piece is a rough BLOCK placeholder (position, shape, size) for now. Each Model has
---   attributes  Kind (e.g. "bed"), Room (1-17), Placeholder (true)
+--   attributes  Kind (e.g. "bed"), Room (1-25), Placeholder (true)
 --   pivot       its floor centre (WorldPivot), front = -Z
 -- To swap in real art later, put a model named like the Kind's `asset` in ServerStorage.AssetLibrary
 -- and seed with style "assets" (see seed()), or replace pieces by hand and leave them alone.
@@ -27,7 +27,7 @@ local DIRTY_WHITE, BRASS, METAL, WARM_LIGHT = HouseKit.DIRTY_WHITE, HouseKit.BRA
 local WALL_FACE, WALL_YAW = HouseKit.WALL_FACE, HouseKit.WALL_YAW
 
 local Furniture = {}
-Furniture.VERSION = 4 -- bump when FurnitureLayout changes; saved furniture is NOT rebuilt automatically
+Furniture.VERSION = 5 -- bump when FurnitureLayout changes; saved furniture is NOT rebuilt automatically
 Furniture.HIDE_TAG = "NightHunterHideSpot"
 
 local V = Vector3.new
@@ -223,6 +223,43 @@ builders.painting = function(m, base, size, e, opts)
 	return frameP
 end
 
+-- A stone fountain: round basin, dark still water, a figure in the middle.
+builders.fountain = function(m, base, size)
+	local stone = Color3.fromRGB(120, 116, 108)
+	local basin = box(m, "Basin", V(1.6, size.X, size.X), base * CFrame.new(0, 0.8, 0) * CFrame.Angles(0, 0, math.pi / 2), stone, Enum.Material.Limestone)
+	basin.Shape = Enum.PartType.Cylinder
+	local water = box(m, "Water", V(0.1, size.X - 1, size.X - 1), base * CFrame.new(0, 1.55, 0) * CFrame.Angles(0, 0, math.pi / 2), Color3.fromRGB(20, 30, 28), Enum.Material.Glass, false)
+	water.Shape = Enum.PartType.Cylinder
+	water.Transparency = 0.2
+	local column = box(m, "Column", V(size.Y - 1.6, 1.2, 1.2), base * CFrame.new(0, 1.6 + (size.Y - 1.6) / 2, 0) * CFrame.Angles(0, 0, math.pi / 2), stone, Enum.Material.Limestone)
+	column.Shape = Enum.PartType.Cylinder
+	box(m, "Bowl", V(3, 0.5, 3), base * CFrame.new(0, size.Y - 0.25, 0), stone, Enum.Material.Limestone)
+	return basin
+end
+
+-- A big clay pot with a dead plant.
+builders.planter = function(m, base, size)
+	local pot = box(m, "Pot", V(size.Y * 0.5, size.X, size.X), base * CFrame.new(0, size.Y * 0.25, 0) * CFrame.Angles(0, 0, math.pi / 2), Color3.fromRGB(112, 64, 46), Enum.Material.Slate)
+	pot.Shape = Enum.PartType.Cylinder
+	local leaves = box(m, "Leaves", V(size.X * 1.1, size.Y * 0.6, size.X * 1.1), base * CFrame.new(0, size.Y * 0.75, 0), Color3.fromRGB(58, 62, 40), Enum.Material.Grass, false)
+	leaves.Shape = Enum.PartType.Ball
+	return pot
+end
+
+-- A washing line between two posts, with grey sheets hanging still (front = -Z, the line runs along X).
+builders.clothesline = function(m, base, size)
+	local wood = Color3.fromRGB(70, 56, 44)
+	for _, sx in { -1, 1 } do
+		box(m, "Post", V(0.4, size.Y, 0.4), base * CFrame.new(sx * size.X / 2, size.Y / 2, 0), wood, Enum.Material.Wood)
+	end
+	local line = box(m, "Line", V(size.X, 0.08, 0.08), base * CFrame.new(0, size.Y - 0.3, 0), Color3.fromRGB(40, 40, 40), Enum.Material.SmoothPlastic, false)
+	for i, x in { -6, -1.5, 3.5, 7.5 } do
+		local h = if i % 2 == 0 then 5.5 else 6.5
+		box(m, "Sheet", V(3.6, h, 0.1), base * CFrame.new(x, size.Y - 0.3 - h / 2, 0), Color3.fromRGB(150, 150, 146), Enum.Material.Fabric, false)
+	end
+	return line
+end
+
 builders.rug = function(m, base, size, e, opts)
 	local color = (opts and opts.color) or HouseKit.CLOTH_RED
 	local r = part(m, base, "Rug", size, V(0, 0.03, 0), color, Enum.Material.Fabric, false)
@@ -276,6 +313,9 @@ local CATALOG = {
 	boiler = item(V(6, 9, 6), Color3.fromRGB(70, 64, 60), Enum.Material.CorrodedMetal, block(false)),
 	coffin = item(V(4.5, 2, 12), WOOD_DARK, Enum.Material.Wood, block(true), "Asset_Coffin"),
 	slab = item(V(4, 3.2, 8), Color3.fromRGB(150, 154, 152), Enum.Material.Metal, block(false)),
+	fountain = item(V(9, 5, 9), Color3.fromRGB(120, 116, 108), Enum.Material.Limestone, builders.fountain),
+	planter = item(V(2.4, 4, 2.4), Color3.fromRGB(112, 64, 46), Enum.Material.Slate, builders.planter),
+	clothesline = item(V(20, 8, 1), Color3.fromRGB(150, 150, 146), Enum.Material.Fabric, builders.clothesline),
 	longTable = item(V(4.5, 3.3, 6.7), WOOD_DARK, Enum.Material.Wood, builders.smallTable, "Furniture_Table"),
 	-- Library art only (nothing is drawn in "blocks" style):
 	cobweb = item(V(15.2, 2.8, 15.7), DIRTY_WHITE, Enum.Material.Fabric, nil, "Cobwebs", { assetOnly = true }),

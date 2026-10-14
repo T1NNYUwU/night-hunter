@@ -4,14 +4,18 @@
 -- instead of every stud is what keeps the AI cheap enough to run every 0.5 s.
 --
 -- Three floors, 17 studs apart (16 studs of room inside): FLOOR 1 (level 0), FLOOR 2 (level 1) and the
--- BASEMENT (level -1). Rooms are big rectangles in house-local studs (x east, z south, y up) so there
--- is room to run: 34 to 44 studs across, joined by wide doorways and open archways, every room with two
--- or more ways out. Floor 1 has the grand entrance hall; its two staircases rise through a hole in
--- floor 2 to the Landing (a balcony over the hall), so the hall is two floors tall.
+-- BASEMENT (level -1). The plan is a real mansion's: a grand hall at the front (64 wide, reaching 20 studs
+-- out in front of the wings), a wide corridor running the whole width of the house behind it on every
+-- floor, and rooms of different sizes off it. Public rooms are at the front, service rooms on the east
+-- (kitchen, servants' hall, a back stair through all three floors), private rooms upstairs. Every room
+-- has two ways out, so there is always a loop to run. See docs/mansion.md for the drawings.
 --
---   floor 2                  floor 1                    basement
---   Nursery Gallery Master   Study  Ballroom Kitchen    Boiler Wine   Cold
---   Guest  [Landing] Bath    Library  HALL   Dining     Coal   Crypt  (nothing under Dining)
+--   floor 2                      floor 1                        basement
+--   Nursery  Gallery  Maid's     Conserv. Ballroom Servants'    Boiler  Wine    Laundry
+--   ======== upper corridor ==   ======== main corridor ======  ======= tunnel ========
+--   Sitting [balcony]  Bath      Study    HALL     Kitchen      Catac.  Crypt   Cold
+--   Master  [galleries] Guest    Library  HALL     Dining       Catac.  Crypt   (rock)
+--                                         (porch)
 --
 -- Positions are local to the house origin; room ids never change once a house is saved.
 
@@ -27,6 +31,7 @@ export type Room = {
 	z1: number,
 	center: Vector3, -- where furniture is measured from and where the hunter stands
 	holes: { Hole }, -- openings in this room's floor (stairwells, the hall void)
+	kind: string, -- "room", or "passage" (corridor, tunnel, balcony)
 }
 export type Passage = { a: number, b: number, kind: string, pts: { Vector3 } } -- pts walk a -> b
 export type Node = { id: number, kind: string, room: number, pos: Vector3, wall: string?, spot: string? }
@@ -44,49 +49,73 @@ local LEVEL_HEIGHT = 17 -- floor to floor
 local CLEAR = 16 -- floor to ceiling inside a room
 local STEP_RISE = 1
 
+-- kind = "passage": a corridor, tunnel or the balcony. Somewhere you pass through, not a room the
+-- hunter makes its lair in.
 local ROOM_DEFS = {
 	-- floor 1 (level 0)
-	{ name = "Entrance Hall", level = 0, x0 = -22, z0 = 0, x1 = 22, z1 = 56, anchor = { 0, 10 } }, -- (not the middle: the pillar stands there)
-	{ name = "Library", level = 0, x0 = -56, z0 = 0, x1 = -22, z1 = 44 },
-	{ name = "Dining Room", level = 0, x0 = 22, z0 = 0, x1 = 56, z1 = 44 },
-	{ name = "Study", level = 0, x0 = -56, z0 = -36, x1 = -22, z1 = 0, holes = { { x0 = -56, z0 = -28, x1 = -49, z1 = -4 } } },
-	{ name = "Ballroom", level = 0, x0 = -22, z0 = -36, x1 = 22, z1 = 0 },
-	{ name = "Kitchen", level = 0, x0 = 22, z0 = -36, x1 = 56, z1 = 0, holes = { { x0 = 49, z0 = -28, x1 = 56, z1 = -4 } } },
+	{ name = "Entrance Hall", level = 0, x0 = -32, z0 = 0, x1 = 32, z1 = 68, anchor = { 0, 10 } }, -- (measured from under the balcony: the pillar stands in the middle)
+	{ name = "Library", level = 0, x0 = -68, z0 = 20, x1 = -32, z1 = 48, holes = { { x0 = -64, z0 = 21.5, x1 = -40, z1 = 26.5 } } },
+	{ name = "Dining Room", level = 0, x0 = 32, z0 = 20, x1 = 68, z1 = 48 },
+	{ name = "Study", level = 0, x0 = -68, z0 = 0, x1 = -32, z1 = 20 },
+	{ name = "Ballroom", level = 0, x0 = -22, z0 = -48, x1 = 22, z1 = -10 },
+	{ name = "Kitchen", level = 0, x0 = 32, z0 = 0, x1 = 68, z1 = 20 },
+	{ name = "Conservatory", level = 0, x0 = -68, z0 = -48, x1 = -22, z1 = -10 },
+	{ name = "Servants' Hall", level = 0, x0 = 22, z0 = -48, x1 = 68, z1 = -10, holes = { { x0 = 61, z0 = -44, x1 = 67, z1 = -16 } } },
+	{ name = "Main Corridor", level = 0, x0 = -68, z0 = -10, x1 = 68, z1 = 0, kind = "passage" },
 	-- floor 2 (level 1)
-	{ name = "Landing", level = 1, x0 = -22, z0 = 0, x1 = 22, z1 = 56, anchor = { 0, 7 }, holes = { { x0 = -22, z0 = 14, x1 = 22, z1 = 56 } } },
-	{ name = "Gallery", level = 1, x0 = -22, z0 = -36, x1 = 22, z1 = 0 },
-	{ name = "Guest Bedroom", level = 1, x0 = -56, z0 = 0, x1 = -22, z1 = 44 },
-	{ name = "Bathroom", level = 1, x0 = 22, z0 = 0, x1 = 56, z1 = 44 },
-	{ name = "Nursery", level = 1, x0 = -56, z0 = -36, x1 = -22, z1 = 0 },
-	{ name = "Master Bedroom", level = 1, x0 = 22, z0 = -36, x1 = 56, z1 = 0 },
+	{ name = "Landing", level = 1, x0 = -32, z0 = 0, x1 = 32, z1 = 68, anchor = { 0, 7 }, kind = "passage",
+		-- the balcony along the back of the hall and a narrow gallery down each side; the rest is open to the hall
+		holes = { { x0 = -26, z0 = 14, x1 = 26, z1 = 68 }, { x0 = -32, z0 = 48, x1 = -26, z1 = 68 }, { x0 = 26, z0 = 48, x1 = 32, z1 = 68 } } },
+	{ name = "Upper Corridor", level = 1, x0 = -68, z0 = -10, x1 = 68, z1 = 0, kind = "passage" },
+	{ name = "Sitting Room", level = 1, x0 = -68, z0 = 0, x1 = -32, z1 = 20 },
+	{ name = "Master Bedroom", level = 1, x0 = -68, z0 = 20, x1 = -32, z1 = 48 },
+	{ name = "Bathroom", level = 1, x0 = 32, z0 = 0, x1 = 68, z1 = 20 },
+	{ name = "Guest Bedroom", level = 1, x0 = 32, z0 = 20, x1 = 68, z1 = 48 },
+	{ name = "Nursery", level = 1, x0 = -68, z0 = -48, x1 = -22, z1 = -10 },
+	{ name = "Portrait Gallery", level = 1, x0 = -22, z0 = -48, x1 = 22, z1 = -10 },
+	{ name = "Maid's Room", level = 1, x0 = 22, z0 = -48, x1 = 68, z1 = -10, holes = { { x0 = 54, z0 = -44, x1 = 60, z1 = -16 } } },
 	-- basement (level -1)
-	{ name = "Boiler Room", level = -1, x0 = -56, z0 = -36, x1 = -22, z1 = 0 },
-	{ name = "Wine Cellar", level = -1, x0 = -22, z0 = -36, x1 = 22, z1 = 0 },
-	{ name = "Cold Storage", level = -1, x0 = 22, z0 = -36, x1 = 56, z1 = 0 },
-	{ name = "Crypt", level = -1, x0 = -22, z0 = 0, x1 = 22, z1 = 44 },
-	{ name = "Coal Cellar", level = -1, x0 = -56, z0 = 0, x1 = -22, z1 = 44 },
+	{ name = "Service Tunnel", level = -1, x0 = -68, z0 = -10, x1 = 68, z1 = 0, kind = "passage" },
+	{ name = "Boiler Room", level = -1, x0 = -68, z0 = -48, x1 = -22, z1 = -10 },
+	{ name = "Wine Cellar", level = -1, x0 = -22, z0 = -48, x1 = 22, z1 = -10 },
+	{ name = "Laundry", level = -1, x0 = 22, z0 = -48, x1 = 68, z1 = -10 },
+	{ name = "Catacombs", level = -1, x0 = -68, z0 = 0, x1 = -32, z1 = 48, anchor = { -50, 38 } }, -- (south of the secret stair)
+	{ name = "Crypt", level = -1, x0 = -32, z0 = 0, x1 = 32, z1 = 48 },
+	{ name = "Cold Storage", level = -1, x0 = 32, z0 = 0, x1 = 68, z1 = 20 },
 }
 
 -- Doorways between rooms of the same level: { roomA, roomB, position along the shared wall, width }
--- (x for a wall that runs along X, z for a wall that runs along Z). 8 = a door; 12 = an open archway.
+-- (x for a wall that runs along X, z for a wall that runs along Z). 6-8 = a door; 12 = an open archway.
 local DOORS = {
-	{ 1, 2, 7, 12 }, { 1, 3, 7, 12 }, { 1, 5, 0, 12 }, { 2, 4, -39, 8 }, { 3, 6, 39, 8 }, { 4, 5, -18, 8 }, { 5, 6, -18, 8 },
-	{ 7, 8, 0, 12 }, { 7, 9, 7, 8 }, { 7, 10, 7, 8 }, { 8, 11, -18, 8 }, { 8, 12, -18, 8 }, { 9, 11, -39, 8 }, { 10, 12, 39, 8 },
-	{ 13, 14, -18, 8 }, { 14, 15, -18, 8 }, { 14, 16, 0, 12 }, { 13, 17, -39, 8 }, { 17, 16, 22, 8 },
+	-- floor 1: the corridor runs end to end behind the hall; the hall opens to the study, library and dining room
+	{ 9, 7, -45, 6 }, { 9, 5, 0, 12 }, { 9, 8, 45, 6 }, { 5, 7, -29, 6 }, { 5, 8, -29, 6 },
+	{ 9, 4, -50, 6 }, { 9, 1, 0, 12 }, { 9, 6, 50, 6 }, { 4, 2, -35, 6 }, { 6, 3, 50, 6 },
+	{ 1, 4, 8, 8 }, { 1, 2, 44, 6 }, { 1, 3, 44, 6 },
+	-- floor 2: the bedrooms open onto the side galleries of the landing as well as their own rooms
+	{ 11, 16, -45, 6 }, { 11, 17, 0, 12 }, { 11, 18, 45, 6 }, { 16, 17, -29, 6 }, { 17, 18, -29, 6 },
+	{ 11, 12, -50, 6 }, { 11, 10, 0, 12 }, { 11, 14, 50, 6 }, { 12, 13, -50, 6 }, { 14, 15, 50, 6 },
+	{ 10, 12, 7, 8 }, { 10, 13, 34, 6 }, { 10, 15, 34, 6 },
+	-- basement
+	{ 19, 20, -45, 6 }, { 19, 21, 0, 12 }, { 19, 22, 45, 6 }, { 20, 21, -29, 6 }, { 21, 22, -29, 6 },
+	{ 19, 23, -50, 6 }, { 19, 24, 0, 12 }, { 19, 25, 50, 6 }, { 23, 24, 30, 8 },
 }
 
 -- Staircases: the foot is in `low`, the top in `high`; width across, 1 stud rise per step.
 -- (lx, lz) = where the lowest step starts, (hx, hz) = where the top step ends and the upper floor begins.
 -- (cx, cz), if given, bends the flight: it is the control point of a curve from the foot to the top.
+-- railTo (0..1): how far up the flight its balustrade runs (default all the way).
 -- Both ends open onto floor (the foot toward the room, the top toward the upper room); the open sides
 -- of the flight get balustrades.
 local STAIRS = {
-	-- the hall's two grand flights start halfway back, sweep along the side walls and curve in toward the
-	-- middle to meet the balcony, leaving the front of the hall (by the door) wide open
-	{ low = 1, high = 7, lx = -18, lz = 40, cx = -18.5, cz = 22, hx = -10, hz = 14, width = 7 }, -- hall, west flight
-	{ low = 1, high = 7, lx = 18, lz = 40, cx = 18.5, cz = 22, hx = 10, hz = 14, width = 7 }, -- hall, east flight
-	{ low = 15, high = 6, lx = 52.5, lz = -4, hx = 52.5, hz = -28, width = 7 }, -- cold storage up to the kitchen
-	{ low = 13, high = 4, lx = -52.5, lz = -4, hx = -52.5, hz = -28, width = 7 }, -- boiler room up to the study
+	-- the hall's two grand flights start halfway back and curve in toward the middle to meet the balcony
+	-- behind the pillar, leaving the front of the hall (by the door) wide open
+	{ low = 1, high = 10, lx = -22, lz = 40, cx = -23, cz = 22, hx = -12, hz = 14, width = 7 }, -- hall, west flight
+	{ low = 1, high = 10, lx = 22, lz = 40, cx = 23, cz = 22, hx = 12, hz = 14, width = 7 }, -- hall, east flight
+	-- the servants' back stair in the north-east corner: laundry -> servants' hall -> maid's room
+	{ low = 22, high = 8, lx = 64, lz = -16, hx = 64, hz = -44, width = 6 },
+	{ low = 8, high = 18, lx = 57, lz = -44, hx = 57, hz = -16, width = 6 },
+	-- the secret stair behind the library's bookcases, down to the catacombs
+	{ low = 23, high = 2, lx = -42, lz = 24, hx = -64, hz = 24, width = 5, railTo = 0.75 },
 }
 
 -- The front door of the mansion (outer wall of a room): { room, side, position along the wall }.
@@ -94,32 +123,34 @@ local ENTRANCE = { room = 1, side = "S", at = 0 }
 
 -- Hiding spots. Wardrobes stand against wall `wall` (their doors face into the room) at `along`
 -- (offset from the room's centre along that wall); tables stand at (x, z) from the centre.
--- Wardrobes come first and tables are appended, so existing node ids never move when one is added.
 local HIDES = {
-	{ room = 1, wall = "N", along = -12 },
-	{ room = 2, wall = "W", along = 10 },
-	{ room = 3, wall = "E", along = 10 },
-	{ room = 4, wall = "N", along = 10 },
+	{ room = 1, wall = "N", along = -22 },
+	{ room = 1, wall = "N", along = 22 },
+	{ room = 7, wall = "W", along = 9 },
 	{ room = 5, wall = "N", along = -14 },
-	{ room = 6, wall = "N", along = -8 },
-	{ room = 7, wall = "N", along = -11 },
-	{ room = 8, wall = "N", along = 12 },
-	{ room = 9, wall = "W", along = 10 },
-	{ room = 10, wall = "E", along = 10 },
-	{ room = 11, wall = "W", along = -10 },
-	{ room = 12, wall = "E", along = -10 },
-	{ room = 13, wall = "N", along = 10 },
-	{ room = 14, wall = "N", along = -12 },
-	{ room = 15, wall = "N", along = -8 },
-	{ room = 16, wall = "S", along = 12 },
-	{ room = 16, wall = "E", along = 10 },
-	{ room = 17, wall = "W", along = 10 },
-	{ room = 2, x = -6, z = 8, spot = "table" }, -- Library reading table
-	{ room = 3, x = 0, z = 8, spot = "table" }, -- Dining table
-	{ room = 4, x = 6, z = 6, spot = "table" }, -- Study desk
-	{ room = 6, x = -6, z = 8, spot = "table" }, -- Kitchen table
-	{ room = 12, x = -6, z = 8, spot = "table" }, -- Dressing table
-	{ room = 15, x = -6, z = 8, spot = "table" }, -- Butcher's slab
+	{ room = 4, wall = "S", along = -6 },
+	{ room = 6, wall = "W", along = 5 },
+	{ room = 3, wall = "S", along = 10 },
+	{ room = 16, wall = "W", along = 7 },
+	{ room = 17, wall = "N", along = 17 },
+	{ room = 14, wall = "E", along = -4 },
+	{ room = 12, wall = "S", along = 10 },
+	{ room = 13, wall = "N", along = 12 },
+	{ room = 10, wall = "N", along = -22 },
+	{ room = 18, wall = "W", along = -10 },
+	{ room = 15, wall = "N", along = -12 },
+	{ room = 20, wall = "W", along = 9 },
+	{ room = 21, wall = "N", along = -18 },
+	{ room = 22, wall = "W", along = -12 },
+	{ room = 23, wall = "S", along = 10 },
+	{ room = 24, wall = "S", along = -26 },
+	{ room = 24, wall = "S", along = 26 },
+	{ room = 8, x = -5, z = 0, spot = "table" }, -- the servants' long table
+	{ room = 4, x = 3, z = 0, spot = "table" }, -- Study desk
+	{ room = 2, x = 0, z = 2, spot = "table" }, -- Library reading table
+	{ room = 6, x = -4, z = 1, spot = "table" }, -- Kitchen table
+	{ room = 3, x = 0, z = 0, spot = "table" }, -- Dining table
+	{ room = 25, x = -6, z = 1, spot = "table" }, -- Butcher's slab
 }
 
 -- Where a wardrobe's centre sits against its wall (the wall's inner face is 0.5 from the room edge).
@@ -141,16 +172,17 @@ for i, def in ROOM_DEFS do
 		z1 = def.z1,
 		center = Vector3.new(cx, floorY, cz),
 		holes = (def :: any).holes or {},
+		kind = (def :: any).kind or "room",
 	}
 end
 
 local HouseGraph = {}
-HouseGraph.ROOM_SIZE = 38 -- typical distance between two neighbouring rooms (the AI's travel-time estimate)
+HouseGraph.ROOM_SIZE = 36 -- typical distance between two neighbouring rooms (the AI's travel-time estimate)
 HouseGraph.LEVEL_HEIGHT = LEVEL_HEIGHT
 HouseGraph.CLEAR = CLEAR
 HouseGraph.STEP_RISE = STEP_RISE
 HouseGraph.SPAWN_ROOM = 1
-HouseGraph.DEFAULT_LAIR = 16 -- the crypt under the hall
+HouseGraph.DEFAULT_LAIR = 24 -- the crypt under the hall
 HouseGraph.LEVEL_NAMES = { [-1] = "BASEMENT", [0] = "FLOOR 1", [1] = "FLOOR 2" }
 HouseGraph.ROOMS = ROOM_LIST
 HouseGraph.DOORS = DOORS
@@ -321,7 +353,7 @@ end
 -- A fingerprint of the layout. The house saved in the place stores it, so a stale house
 -- (built before the graph changed) is detected and rebuilt instead of silently disagreeing.
 function HouseGraph.signature(graph: Graph): string
-	local parts = { ("mansion v2 rooms %d"):format(#graph.rooms) }
+	local parts = { ("mansion v3 rooms %d"):format(#graph.rooms) }
 	for _, r in graph.rooms do
 		table.insert(parts, ("%s:%d:%g,%g,%g,%g"):format(r.name, r.level, r.x0, r.z0, r.x1, r.z1))
 	end

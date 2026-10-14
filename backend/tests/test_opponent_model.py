@@ -20,13 +20,13 @@ def golden():
 
 def test_graph_matches_the_game():
     g = load()
-    assert g.room_count == 17 and g.node_count == 41  # 17 rooms on three levels, 18 wardrobes, 6 cloth tables
-    assert g.dist[1][7] == 1  # hall up the staircase to the landing
-    assert g.dist[1][13] == 3  # hall, library, study, down to the boiler room
-    assert g.dist[1][16] == 5  # the crypt under the hall is a long way round
-    assert g.dist[6][15] == 1  # kitchen down to cold storage
-    assert g.nodes[18].kind == "hide" and g.nodes[18].room == 1
-    assert g.nodes[41].kind == "hide" and g.nodes[41].room == 15  # the butcher's slab
+    assert g.room_count == 25 and g.node_count == 52  # 25 rooms on three floors, 21 wardrobes, 6 cloth tables
+    assert g.dist[1][10] == 1  # hall up the grand staircase to the landing
+    assert g.dist[1][24] == 3  # hall, library, down the secret stair to the catacombs, crypt
+    assert g.dist[8][18] == 1  # servants' hall up the back stair to the maid's room
+    assert g.dist[2][23] == 1  # library down the secret stair to the catacombs
+    assert g.nodes[26].kind == "hide" and g.nodes[26].room == 1
+    assert g.nodes[52].kind == "hide" and g.nodes[52].room == 25  # the butcher's slab
 
 
 def test_fit_matches_luau(golden):
