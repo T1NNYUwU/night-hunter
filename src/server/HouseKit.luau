@@ -24,12 +24,12 @@ HouseKit.WARM_LIGHT = Color3.fromRGB(255, 196, 140)
 HouseKit.MOON_LIGHT = Color3.fromRGB(150, 175, 255)
 
 -- Light levels (horror: dim). One place to tune the whole house.
-HouseKit.LAMP_BRIGHTNESS = 0.22
+HouseKit.LAMP_BRIGHTNESS = 0.3
 HouseKit.LAMP_RANGE = 30
-HouseKit.CHANDELIER_BRIGHTNESS = 0.34
+HouseKit.CHANDELIER_BRIGHTNESS = 0.32
 HouseKit.CHANDELIER_RANGE = 44
-HouseKit.CANDLE_BRIGHTNESS = 0.38
-HouseKit.WINDOW_BRIGHTNESS = 0.3
+HouseKit.CANDLE_BRIGHTNESS = 0.32
+HouseKit.WINDOW_BRIGHTNESS = 0.45
 
 function HouseKit.box(parent, name, size, cf, color, material, collide)
 	local p = Instance.new("Part")
@@ -53,12 +53,12 @@ function HouseKit.placer(roomOrigin: Vector3)
 	end
 end
 
-function HouseKit.light(parent, color, range, brightness, flicker)
+function HouseKit.light(parent, color, range, brightness, flicker, shadows)
 	local l = Instance.new("PointLight")
 	l.Color = color
 	l.Range = range
 	l.Brightness = brightness
-	l.Shadows = false
+	l.Shadows = shadows == true -- only the few lamps that light a room: candles stay cheap
 	l.Parent = parent
 	if flicker then
 		CollectionService:AddTag(parent, "NightHunterFlicker")

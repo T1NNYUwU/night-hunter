@@ -30,7 +30,7 @@ local CLEAR = HouseGraph.CLEAR
 local LEVEL = HouseGraph.LEVEL_HEIGHT
 
 local HouseDecor = {}
-HouseDecor.VERSION = 10 -- bump when the shell finish changes, so a saved shell gets rebuilt
+HouseDecor.VERSION = 11 -- bump when the shell finish changes, so a saved shell gets rebuilt
 
 -- Pillar and altar: where the last night's relics go. Local to the house, at the hall's floor.
 HouseDecor.PILLAR_POS = V(0, 0, 21)
@@ -70,8 +70,11 @@ HouseDecor.THEMES = {
 	[17] = { name = "Coal Cellar", stone = true, wall = Color3.fromRGB(46, 44, 44), wallMat = Enum.Material.Concrete, floor = Color3.fromRGB(36, 34, 34), floorMat = Enum.Material.Basalt },
 }
 
--- Rooms whose light flickers (picked by hand so the house has a rhythm, not noise).
-local FLICKER_ROOMS = { [4] = true, [8] = true, [11] = true, [13] = true, [15] = true, [16] = true, [17] = true }
+-- Rooms whose ceiling light still works. Everywhere else the bulb is dead: candles, moonlight and your
+-- flashlight are all there is, and the dark between them is where the fear lives.
+local LIT_ROOMS = { [7] = true, [3] = true, [6] = true, [12] = true, [13] = true, [8] = true }
+-- Lights that flicker (picked by hand so the house has a rhythm, not noise).
+local FLICKER_ROOMS = { [6] = true, [8] = true, [13] = true, [3] = true }
 -- Rooms lit by a chandelier instead of a pendant lamp.
 local CHANDELIER_ROOMS = { [7] = true, [3] = true, [5] = true, [12] = true }
 -- Windows that are boarded up (by room): the rest have curtains.
@@ -270,7 +273,7 @@ local function windowsOn(m, origin, seg, room, theme, withMoon: boolean)
 			beam.Range = if big then 48 else 30
 			beam.Brightness = HouseKit.WINDOW_BRIGHTNESS
 			beam.Angle = 55
-			beam.Shadows = true
+			beam.Shadows = true -- window bars and curtains throw long shadows across the floor
 			beam.Face = Enum.NormalId.Front
 			beam.Parent = glass
 			glass.CFrame = CFrame.lookAt(glass.Position, glass.Position + look - V(0, 0.35, 0))
@@ -325,9 +328,11 @@ local function ceilingLight(m, origin, room)
 			chandelier.Parent = m
 		end
 		box(m, "Chain", V(0.14, drop, 0.14), at(0, CLEAR - drop / 2, 0), Color3.fromRGB(20, 20, 20), Enum.Material.Metal, false)
-		local glow = box(m, "ChandelierGlow", V(0.2, 0.2, 0.2), at(0, CLEAR - drop - h * 0.5, 0), WARM_LIGHT, Enum.Material.Neon, false)
-		glow.Transparency = 1
-		light(glow, WARM_LIGHT, HouseKit.CHANDELIER_RANGE, HouseKit.CHANDELIER_BRIGHTNESS, flicker)
+		if LIT_ROOMS[room.id] then
+			local glow = box(m, "ChandelierGlow", V(0.2, 0.2, 0.2), at(0, CLEAR - drop - h * 0.5, 0), WARM_LIGHT, Enum.Material.Neon, false)
+			glow.Transparency = 1
+			light(glow, WARM_LIGHT, HouseKit.CHANDELIER_RANGE, HouseKit.CHANDELIER_BRIGHTNESS, flicker, true)
+		end
 		return
 	end
 	box(m, "LampCord", V(0.1, 3.2, 0.1), at(0, CLEAR - 1.6, 0), Color3.fromRGB(20, 20, 20), Enum.Material.SmoothPlastic, false)
@@ -338,9 +343,12 @@ local function ceilingLight(m, origin, room)
 	else
 		box(m, "Cage", V(1, 1.2, 1), at(0, CLEAR - 4.6, 0), Color3.fromRGB(30, 30, 30), Enum.Material.DiamondPlate, false).Transparency = 0.6
 	end
-	local bulb = box(m, "Bulb", V(0.6, 0.6, 0.6), at(0, CLEAR - 4.6, 0), Color3.fromRGB(255, 170, 90), Enum.Material.Neon, false)
+	local lit = LIT_ROOMS[room.id]
+	local bulb = box(m, "Bulb", V(0.6, 0.6, 0.6), at(0, CLEAR - 4.6, 0), if lit then Color3.fromRGB(255, 170, 90) else Color3.fromRGB(40, 36, 30), if lit then Enum.Material.Neon else Enum.Material.Glass, false)
 	bulb.Shape = Enum.PartType.Ball
-	light(bulb, WARM_LIGHT, HouseKit.LAMP_RANGE, HouseKit.LAMP_BRIGHTNESS, flicker)
+	if lit then
+		light(bulb, WARM_LIGHT, HouseKit.LAMP_RANGE, HouseKit.LAMP_BRIGHTNESS, flicker, true)
+	end
 end
 
 -- Two candle sconces on the room's longest solid wall: little islands of warm light that flicker.
@@ -560,7 +568,7 @@ function HouseDecor.decorate(shell: Instance, graph, origin: Vector3, segments)
 				finishFace(m, origin, seg, room, theme)
 				if seg.b == nil and seg.entrance then
 					frontDoor(m, origin, seg)
-				elseif seg.b == nil and room.level >= 0 and seg.hi - seg.lo >= 12 and not (room.id == 1) then
+				elseif seg.b == nil and room.level >= 0 and seg.hi - seg.lo >= 12 then
 					windowsOn(m, origin, seg, room, theme, moon)
 					moon = false
 				end
@@ -568,7 +576,7 @@ function HouseDecor.decorate(shell: Instance, graph, origin: Vector3, segments)
 		end
 		beams(m, origin, room, theme, graph)
 		ceilingLight(m, origin, room)
-		if not theme.stone or room.level < 0 then
+		if not theme.stone or room.level < 0 or room.id == 1 then
 			sconces(m, origin, room, segments)
 		end
 		cobwebs(m, origin, room)

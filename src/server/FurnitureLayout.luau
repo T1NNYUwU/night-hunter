@@ -26,13 +26,19 @@ local HIDE_TABLE_TOP = 3.1
 
 local rooms = {}
 
-rooms[1] = function(f) -- Entrance Hall (spawn). Measured from (0, 10) under the balcony; the pillar + altar stand at z +11..+16 (shell); stairs along E and W
-	f.rug(0, 12, 14, 30, RED)
-	for _, x in { -8, 8 } do
-		f.piece("pedestal", x, 30.5, 0)
-		f.piece("statuette", x, 30.5, 180, { y = 3 })
+rooms[1] = function(f) -- Entrance Hall (spawn). Measured from (0, 10) under the balcony; the pillar + altar stand at z +11..+16 (shell);
+	-- the curved staircases run from z +30 back to the balcony; the front (z +30..+46) is open floor
+	f.rug(0, 31, 22, 14, RED)
+	f.rug(0, 18, 6, 12, RED)
+	for _, x in { -14, 14 } do
+		f.piece("pedestal", x, 42, 0)
+		f.piece("statuette", x, 42, 180, { y = 3 })
 	end
-	f.wall("clock", "S", 10)
+	for _, x in { -8, 8 } do
+		f.piece("pedestal", x, 26, 0)
+		f.piece("candelabra", x, 26, 0, { y = 3 })
+	end
+	f.wall("clock", "S", 12)
 	f.art("N", 13, 4, 5, Color3.fromRGB(70, 50, 40), { tilt = -4 })
 	f.art("N", -12, 2.8, 3.9, nil, { kind = "antlers", y = 11 })
 	f.art("N", 18, 3.5, 12, PURPLE, { y = 7 })
@@ -47,8 +53,8 @@ rooms[2] = function(f) -- Library. Doors E (z -15, archway), N (middle) · wardr
 	f.wall("shelf", "N", -10.5)
 	f.wall("shelf", "N", 8.6, { scale = 0.7 })
 	f.wall("fireplace", "E", 8)
-	f.piece("armchair", 10.5, 4.5, -90, { color = GREEN, sheet = true })
-	f.piece("armchair", 10.5, 11.5, -90, { color = GREEN })
+	f.piece("armchair", 9, 4, -90, { color = GREEN, sheet = true })
+	f.piece("armchair", 9, 12, -90, { color = GREEN })
 	f.piece("candelabra", -6, 8, 0, { y = HIDE_TABLE_TOP })
 	f.piece("chair", -6, 12.6, 0)
 	f.piece("chair", -1, -12, 30, { tipped = true })
@@ -67,7 +73,6 @@ rooms[3] = function(f) -- Dining Room. Doors W (z -15, archway), N (middle) · w
 	f.wall("cabinet", "E", -3)
 	f.wall("drawer", "E", 17)
 	f.wall("fireplace", "W", 10)
-	f.piece("candlesticks", -14.6, 10, 90, { y = 7 })
 	f.art("S", -8, 4, 5, Color3.fromRGB(90, 60, 50), { tilt = 5 })
 	f.art("S", 8, 4, 5, Color3.fromRGB(60, 60, 90))
 	f.art("N", -10, 3, 5, nil, { kind = "mirror" })
@@ -86,7 +91,7 @@ rooms[4] = function(f) -- Study. Doors S, E (middle) · stairs down on the W sid
 end
 
 rooms[5] = function(f) -- Ballroom. Archway S (to the hall), doors W, E (middle) · wardrobe N (-14). The floor stays empty.
-	f.wall("piano", "N", 8, { sheet = true })
+	f.piece("piano", 5, -9, 160)
 	f.wall("clock", "N", 17)
 	for _, z in { -10, 10 } do
 		f.wall("chair", "W", z)
@@ -218,10 +223,11 @@ end
 
 rooms[16] = function(f) -- Crypt (the lair). Archway N, door W (middle) · wardrobes S (+12), E (+10)
 	for _, z in { -10, 2 } do
-		f.piece("coffin", -15, z, 0)
-		f.piece("coffin", 15, z - 4, 0)
+		f.piece("coffin", -15, z, 0, { scale = 0.7 })
+		f.piece("coffin", 15, z - 4, 0, { scale = 0.7 })
 	end
-	f.piece("coffin", -6, 17, 90, { sheet = true })
+	f.piece("coffin", -6, 17, 90, { scale = 0.7, sheet = true })
+	f.piece("coffin", 4, -4, 20, { scale = 0.7 }) -- one left in the middle, lid ajar
 	for _, x in { -18, 18 } do
 		f.piece("pedestal", x, -18, 0)
 		f.piece("candelabra", x, -18, 0, { y = 3 })

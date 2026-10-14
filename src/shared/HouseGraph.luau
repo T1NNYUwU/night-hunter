@@ -46,14 +46,14 @@ local STEP_RISE = 1
 
 local ROOM_DEFS = {
 	-- floor 1 (level 0)
-	{ name = "Entrance Hall", level = 0, x0 = -22, z0 = 0, x1 = 22, z1 = 44, anchor = { 0, 10 } }, -- (not the middle: the pillar stands there)
+	{ name = "Entrance Hall", level = 0, x0 = -22, z0 = 0, x1 = 22, z1 = 56, anchor = { 0, 10 } }, -- (not the middle: the pillar stands there)
 	{ name = "Library", level = 0, x0 = -56, z0 = 0, x1 = -22, z1 = 44 },
 	{ name = "Dining Room", level = 0, x0 = 22, z0 = 0, x1 = 56, z1 = 44 },
 	{ name = "Study", level = 0, x0 = -56, z0 = -36, x1 = -22, z1 = 0, holes = { { x0 = -56, z0 = -28, x1 = -49, z1 = -4 } } },
 	{ name = "Ballroom", level = 0, x0 = -22, z0 = -36, x1 = 22, z1 = 0 },
 	{ name = "Kitchen", level = 0, x0 = 22, z0 = -36, x1 = 56, z1 = 0, holes = { { x0 = 49, z0 = -28, x1 = 56, z1 = -4 } } },
 	-- floor 2 (level 1)
-	{ name = "Landing", level = 1, x0 = -22, z0 = 0, x1 = 22, z1 = 44, anchor = { 0, 7 }, holes = { { x0 = -22, z0 = 14, x1 = 22, z1 = 44 } } },
+	{ name = "Landing", level = 1, x0 = -22, z0 = 0, x1 = 22, z1 = 56, anchor = { 0, 7 }, holes = { { x0 = -22, z0 = 14, x1 = 22, z1 = 56 } } },
 	{ name = "Gallery", level = 1, x0 = -22, z0 = -36, x1 = 22, z1 = 0 },
 	{ name = "Guest Bedroom", level = 1, x0 = -56, z0 = 0, x1 = -22, z1 = 44 },
 	{ name = "Bathroom", level = 1, x0 = 22, z0 = 0, x1 = 56, z1 = 44 },
@@ -77,11 +77,14 @@ local DOORS = {
 
 -- Staircases: the foot is in `low`, the top in `high`; width across, 1 stud rise per step.
 -- (lx, lz) = where the lowest step starts, (hx, hz) = where the top step ends and the upper floor begins.
--- Both ends open onto floor (the foot toward the room, the top toward the upper room); the open side
--- of the flight gets a balustrade.
+-- (cx, cz), if given, bends the flight: it is the control point of a curve from the foot to the top.
+-- Both ends open onto floor (the foot toward the room, the top toward the upper room); the open sides
+-- of the flight get balustrades.
 local STAIRS = {
-	{ low = 1, high = 7, lx = -18.5, lz = 40, hx = -18.5, hz = 14, width = 7 }, -- hall, west flight
-	{ low = 1, high = 7, lx = 18.5, lz = 40, hx = 18.5, hz = 14, width = 7 }, -- hall, east flight
+	-- the hall's two grand flights start halfway back, sweep along the side walls and curve in toward the
+	-- middle to meet the balcony, leaving the front of the hall (by the door) wide open
+	{ low = 1, high = 7, lx = -18, lz = 40, cx = -18.5, cz = 22, hx = -10, hz = 14, width = 7 }, -- hall, west flight
+	{ low = 1, high = 7, lx = 18, lz = 40, cx = 18.5, cz = 22, hx = 10, hz = 14, width = 7 }, -- hall, east flight
 	{ low = 15, high = 6, lx = 52.5, lz = -4, hx = 52.5, hz = -28, width = 7 }, -- cold storage up to the kitchen
 	{ low = 13, high = 4, lx = -52.5, lz = -4, hx = -52.5, hz = -28, width = 7 }, -- boiler room up to the study
 }
@@ -198,12 +201,48 @@ local function buildPassages(): { Passage }
 	end
 	for _, s in STAIRS do
 		local low, high = ROOM_LIST[s.low], ROOM_LIST[s.high]
-		local foot = Vector3.new(s.lx, low.floorY, s.lz)
-		local top = Vector3.new(s.hx, high.floorY, s.hz)
-		local dir = Vector3.new(top.X - foot.X, 0, top.Z - foot.Z).Unit
-		table.insert(passages, { a = low.id, b = high.id, kind = "stairs", pts = { foot - dir * 2.5, foot, top, top + dir * 2.5 } })
+		local path = HouseGraph.stairPath(s, 6)
+		local pts = {}
+		for i, p in path do
+			pts[i] = Vector3.new(p.X, low.floorY + (high.floorY - low.floorY) * (i - 1) / (#path - 1), p.Z)
+		end
+		local d0 = (path[2] - path[1]).Unit
+		local d1 = (path[#path] - path[#path - 1]).Unit
+		table.insert(pts, 1, pts[1] - d0 * 2.5)
+		table.insert(pts, pts[#pts] + d1 * 2.5)
+		table.insert(passages, { a = low.id, b = high.id, kind = "stairs", pts = pts })
 	end
 	return passages
+end
+
+-- The centre line of a staircase from its foot to its top as `count` + 1 evenly spaced points (y = 0):
+-- a straight line, or a curve through the control point (cx, cz). Also returns the length.
+function HouseGraph.stairPath(s, count: number): ({ Vector3 }, number)
+	local p0 = Vector3.new(s.lx, 0, s.lz)
+	local p2 = Vector3.new(s.hx, 0, s.hz)
+	local p1 = if s.cx then Vector3.new(s.cx, 0, s.cz) else (p0 + p2) / 2
+	local dense, lengths = {}, { 0 }
+	local samples = 64
+	for i = 0, samples do
+		local t = i / samples
+		local u = 1 - t
+		dense[i + 1] = p0 * (u * u) + p1 * (2 * u * t) + p2 * (t * t)
+	end
+	for i = 2, #dense do
+		lengths[i] = lengths[i - 1] + (dense[i] - dense[i - 1]).Magnitude
+	end
+	local total = lengths[#lengths]
+	local out = {}
+	local j = 1
+	for k = 0, count do
+		local target = total * k / count
+		while j < #dense - 1 and lengths[j + 1] < target do
+			j += 1
+		end
+		local span = lengths[j + 1] - lengths[j]
+		out[k + 1] = dense[j]:Lerp(dense[j + 1], if span > 0 then math.clamp((target - lengths[j]) / span, 0, 1) else 0)
+	end
+	return out, total
 end
 
 local PASSAGES = buildPassages()

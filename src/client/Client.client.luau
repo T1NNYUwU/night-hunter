@@ -393,24 +393,75 @@ RunService:BindToRenderStep("NightHunterView", Enum.RenderPriority.Camera.Value 
 	end
 end)
 
--- Flickering lamps and candles: purely cosmetic, so each client animates its own copy.
+-- Flickering lamps and candles: purely cosmetic, so each client animates its own copy. Every light (not
+-- only the flickering ones) stutters and dies when the hunter walks past it: you can see it coming.
 task.spawn(function()
 	local rng = Random.new()
+	local dead = {} -- [Light] = time it comes back
+	local lights = {}
+	local lastScan = 0
 	while true do
-		for _, part in CollectionService:GetTagged("NightHunterFlicker") do
-			local light = part:FindFirstChildWhichIsA("Light")
-			if light then
+		local now = os.clock()
+		local house = Workspace:FindFirstChild("NightHunterHouse")
+		if now - lastScan > 5 and house then
+			lastScan = now
+			table.clear(lights)
+			for _, l in house:GetDescendants() do
+				if l:IsA("PointLight") and l.Parent:IsA("BasePart") then
+					table.insert(lights, l)
+				end
+			end
+		end
+		local hunterModel = house and house:FindFirstChild("Hunter")
+		local hunterPos = hunterModel and hunterModel:GetPivot().Position
+		local hunting = (state:GetAttribute("HunterMode") or "asleep") ~= "asleep"
+		for _, light in lights do
+			if light.Parent then
 				local base = light:GetAttribute("BaseBrightness")
 				if not base then
 					base = light.Brightness
 					light:SetAttribute("BaseBrightness", base)
 				end
-				light.Brightness = if rng:NextNumber() < 0.08 then base * 0.15 else base * rng:NextNumber(0.85, 1.1)
+				local near = hunting and hunterPos and (light.Parent.Position - hunterPos).Magnitude < 26
+				if near then
+					light.Brightness = if rng:NextNumber() < 0.45 then 0 else base * rng:NextNumber(0.1, 0.7)
+				elseif dead[light] and now < dead[light] then
+					light.Brightness = 0
+				elseif CollectionService:HasTag(light.Parent, "NightHunterFlicker") then
+					if rng:NextNumber() < 0.006 then
+						dead[light] = now + rng:NextNumber(0.4, 2.5) -- the bulb gives out for a moment
+					end
+					light.Brightness = if rng:NextNumber() < 0.08 then base * 0.15 else base * rng:NextNumber(0.85, 1.1)
+				else
+					light.Brightness = base
+				end
 			end
 		end
 		task.wait(0.12)
 	end
 end)
+
+-- A dark vignette closes in on the edges of the screen.
+do
+	local vignette = Instance.new("Frame")
+	vignette.Name = "Vignette"
+	vignette.Size = UDim2.fromScale(1, 1)
+	vignette.BackgroundTransparency = 1
+	vignette.ZIndex = 0
+	vignette.Parent = gui
+	for _, rot in { 0, 90, 180, 270 } do
+		local edge = Instance.new("Frame")
+		edge.Size = UDim2.fromScale(1, 1)
+		edge.BackgroundColor3 = Color3.new(0, 0, 0)
+		edge.BorderSizePixel = 0
+		edge.ZIndex = 0
+		edge.Parent = vignette
+		local g = Instance.new("UIGradient")
+		g.Transparency = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.25), NumberSequenceKeypoint.new(0.22, 1), NumberSequenceKeypoint.new(1, 1) })
+		g.Rotation = rot -- one edge each: left, top, right, bottom
+		g.Parent = edge
+	end
+end
 
 ---------------------------------------------------------------- text
 

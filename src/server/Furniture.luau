@@ -27,7 +27,7 @@ local DIRTY_WHITE, BRASS, METAL, WARM_LIGHT = HouseKit.DIRTY_WHITE, HouseKit.BRA
 local WALL_FACE, WALL_YAW = HouseKit.WALL_FACE, HouseKit.WALL_YAW
 
 local Furniture = {}
-Furniture.VERSION = 3 -- bump when FurnitureLayout changes; saved furniture is NOT rebuilt automatically
+Furniture.VERSION = 4 -- bump when FurnitureLayout changes; saved furniture is NOT rebuilt automatically
 Furniture.HIDE_TAG = "NightHunterHideSpot"
 
 local V = Vector3.new
@@ -259,7 +259,7 @@ local CATALOG = {
 	barrel = item(V(2.4, 3, 2.4), WOOD, Enum.Material.Wood, builders.barrel),
 	pedestal = item(V(1.4, 3, 1.4), DIRTY_WHITE, Enum.Material.Marble, builders.pedestal),
 	clock = item(V(2, 8, 1.6), WOOD_DARK, Enum.Material.Wood, builders.clock),
-	fireplace = item(V(7, 7, 1.6), Color3.fromRGB(110, 100, 96), Enum.Material.Brick, builders.fireplace),
+	fireplace = item(V(9.4, 15, 4), Color3.fromRGB(110, 100, 96), Enum.Material.Brick, builders.fireplace, "Asset_Fireplace"),
 	crib = item(V(2.6, 4.7, 4.2), WOOD_LIGHT, Enum.Material.Wood, builders.crib),
 	rockingHorse = item(V(1, 3.4, 4), Color3.fromRGB(180, 150, 120), Enum.Material.Wood, builders.rockingHorse),
 	toyBlocks = item(V(3.6, 0.8, 1.6), BRASS, Enum.Material.SmoothPlastic, builders.toyBlocks),
@@ -271,10 +271,10 @@ local CATALOG = {
 	candlesticks = item(V(1.4, 2.1, 0.5), BRASS, Enum.Material.Metal, builders.candle, "Decor_Candlesticks"),
 	rug = item(V(8, 0.07, 6), HouseKit.CLOTH_RED, Enum.Material.Fabric, builders.rug),
 	sofa = item(V(8, 4, 3), HouseKit.CLOTH_RED, Enum.Material.Fabric, builders.armchair),
-	piano = item(V(7, 4.6, 3), Color3.fromRGB(22, 20, 22), Enum.Material.Wood, block(true)),
+	piano = item(V(12.4, 7.9, 12.7), Color3.fromRGB(22, 20, 22), Enum.Material.Wood, block(true), "Asset_Piano"),
 	wineRack = item(V(9, 7, 2), WOOD_DARK, Enum.Material.Wood, block(true)),
 	boiler = item(V(6, 9, 6), Color3.fromRGB(70, 64, 60), Enum.Material.CorrodedMetal, block(false)),
-	coffin = item(V(3, 2.6, 7.5), WOOD_DARK, Enum.Material.Wood, block(true)),
+	coffin = item(V(4.5, 2, 12), WOOD_DARK, Enum.Material.Wood, block(true), "Asset_Coffin"),
 	slab = item(V(4, 3.2, 8), Color3.fromRGB(150, 154, 152), Enum.Material.Metal, block(false)),
 	longTable = item(V(4.5, 3.3, 6.7), WOOD_DARK, Enum.Material.Wood, builders.smallTable, "Furniture_Table"),
 	-- Library art only (nothing is drawn in "blocks" style):

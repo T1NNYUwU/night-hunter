@@ -76,3 +76,16 @@ HouseDecor จะใช้กล่องแทนให้อัตโนมั
 | 4883328544, 4883315392 | Victorian Sofa / Big Sofa | **ไม่ใช้**: ชิ้นยาว ~24–27 studs และมี Decal/Texture 400–700 ชิ้นต่อโซฟา หนักเกินไป |
 - ทุกชิ้นปรับเป็นมาตรฐาน AssetLibrary: Anchored, ไม่ชน, pivot (ของแขวน: กลางชิ้น หน้าไปทาง −Z; ของตั้ง: กลางฐาน), Attribute `Size`, `AssetId`, `Creator`, `Audit`
 - ไม่ได้เปิด HttpService หรือสิทธิ์อะไรเพิ่มเพราะ asset เหล่านี้
+
+## เปียโน เตาผิง โลงศพ (2026-10-15)
+นำเข้าโฟลเดอร์กักกัน (ServerStorage.Quarantine) ตรวจสคริปต์ทุกตัวด้วยรายการ pattern อันตราย (require, loadstring, HttpService, RemoteEvent/Function, string.char/byte ฯลฯ)
+| asset id | ชื่อ (ผู้สร้าง) | ผลตรวจ | ใช้ |
+|---|---|---|---|
+| 10960695856 | Wooden Grand Piano (BenedictMarytime) | ไม่มีสคริปต์, ~610 parts | ✅ `Asset_Piano` |
+| 7361203528 | Victorian Fireplace (Cholin178) | ไม่มีสคริปต์, มี Fire + PointLight | ✅ `Asset_Fireplace` |
+| 10614599283 | Coffin (Zlatonduas) | ไม่มีสคริปต์, MeshPart + SurfaceAppearance | ✅ `Asset_Coffin` (ย่อ 0.7) |
+| 9652062113 | grand piano (makoyla57) | มี PianoScript (เปียโนเล่นได้ + Seat) ไม่จำเป็น | ❌ ลบ |
+| 8136731803 | antique fireplace (EerieBun) | ไม่มีสคริปต์ แต่ใหญ่ 13.6×12.7 เกินห้อง | ❌ ไม่ใช้ |
+| 15282287381, 179174097 | wooden coffin / Coffin (Roblox) | ไม่มีสคริปต์ | ไม่เลือก (แบบแรกสวยกว่า) |
+| **70597642999198** | **Titanic B52 Fireplace (Zetureta502)** | **คำอธิบายบอก "No scripts" แต่ซ่อน Script ชื่อ `Runtime` ที่ใช้ RemoteFunction + LocalScript 35,000 ตัวอักษร + ScreenGui ทั้งชุด** | **⛔ ปฏิเสธ ลบทิ้ง (ลักษณะ backdoor)** อย่านำเข้าอีก |
+- ชิ้นที่ใช้ปรับเป็นมาตรฐาน AssetLibrary (Anchored, pivot กลางฐาน หน้า −Z, Attribute Size/AssetId/Creator/Audit), Seat ถูกปิด

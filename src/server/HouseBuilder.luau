@@ -47,7 +47,9 @@ local V = Vector3.new
 -- Railings around stairwells: { x1, z1, x2, z2, floorY } (house-local). The openings stay open where
 -- the stairs arrive.
 local RAILS = {
-	{ -15, 14, 15, 14, LEVEL }, -- the landing balcony, between the tops of the two hall staircases
+	{ -22, 14, -14.5, 14, LEVEL }, -- the landing balcony: three stretches, open where the two curved
+	{ -5.5, 14, 5.5, 14, LEVEL }, --   hall staircases arrive
+	{ 14.5, 14, 22, 14, LEVEL },
 	{ -49, -28, -49, -4, 0 }, -- study stairwell, east edge
 	{ -56, -4, -49, -4, 0 }, -- study stairwell, south edge
 	{ 49, -28, 49, -4, 0 }, -- kitchen stairwell, west edge
@@ -174,7 +176,7 @@ local function buildSlabs(floors, graph)
 end
 
 -- A solid balustrade between two points (house-local), `y` = the lower end's floor, tilted if the ends differ in height.
-local function balustrade(parent, a: Vector3, b: Vector3, height: number)
+local function balustrade(parent, a: Vector3, b: Vector3, height: number, newelStart: boolean?, newelEnd: boolean?)
 	local mid = (a + b) / 2
 	local length = (b - a).Magnitude
 	local cf = if length < 0.01 then CFrame.new(ORIGIN + mid) else CFrame.lookAt(ORIGIN + mid, ORIGIN + b)
@@ -191,8 +193,8 @@ local function balustrade(parent, a: Vector3, b: Vector3, height: number)
 	local count = math.max(2, math.floor(length / 1.4))
 	for i = 0, count do
 		local t = -length / 2 + i * length / count
-		local post = part(parent, if i == 0 or i == count then "Newel" else "Baluster", Vector3.zero, Vector3.zero, HouseKit.WOOD, Enum.Material.Wood)
-		local newel = i == 0 or i == count
+		local newel = (i == 0 and newelStart ~= false) or (i == count and newelEnd ~= false)
+		local post = part(parent, if newel then "Newel" else "Baluster", Vector3.zero, Vector3.zero, HouseKit.WOOD, Enum.Material.Wood)
 		post.Size = if newel then V(0.9, height + 0.9, 0.9) else V(0.32, height, 0.32)
 		-- upright even on a sloping rail: place by position along the rail, then stand it straight
 		local at = (cf * CFrame.new(0, 0, t)).Position
@@ -201,35 +203,50 @@ local function balustrade(parent, a: Vector3, b: Vector3, height: number)
 	end
 end
 
--- One staircase: solid steps (1 stud rise each) from the foot up to the top, a carpet runner on the
--- grand ones, and a tilted balustrade along the open side.
+-- One staircase: solid steps (1 stud rise each) along its centre line from the foot up to the top (a
+-- straight run or a curve), a carpet runner on the grand ones, and balustrades on the open sides.
 local function buildStairs(parent, graph, s)
 	local low, high = graph.rooms[s.low], graph.rooms[s.high]
 	local yLow, yHigh = low.floorY, high.floorY
 	local n = math.floor((yHigh - yLow) / STEP + 0.5)
-	local foot, top = V(s.lx, yLow, s.lz), V(s.hx, yHigh, s.hz)
-	local flat = V(top.X - foot.X, 0, top.Z - foot.Z)
-	local run = flat.Magnitude
-	local dir = flat.Unit
-	local tread = run / n
+	local path = HouseGraph.stairPath(s, n)
 	local grand = s.low == 1
 	for i = 1, n do
-		local mid = foot + dir * ((i - 0.5) * tread)
+		local a, b = path[i], path[i + 1]
+		local dir = (b - a).Unit
+		local tread = (b - a).Magnitude + (if s.cx then 0.6 else 0.02) -- overlap so a curve has no gaps
+		local mid = (a + b) / 2
 		local topY = yLow + i * STEP
 		local height = topY - (yLow - 0.5)
-		local cf = CFrame.lookAt(ORIGIN + V(mid.X, yLow - 0.5 + height / 2, mid.Z), ORIGIN + V(mid.X, yLow - 0.5 + height / 2, mid.Z) + dir)
-		local step = part(parent, "Step", V(s.width, height, tread + 0.02), Vector3.zero, STAIR_COLOR, Enum.Material.Wood)
+		local centre = ORIGIN + V(mid.X, yLow - 0.5 + height / 2, mid.Z)
+		local cf = CFrame.lookAt(centre, centre + dir)
+		local step = part(parent, "Step", V(s.width, height, tread), Vector3.zero, STAIR_COLOR, Enum.Material.Wood)
 		step.CFrame = cf
 		if grand then
 			local carpet = part(parent, "Carpet", V(s.width - 2.4, 0.1, tread), Vector3.zero, CARPET_COLOR, Enum.Material.Fabric)
 			carpet.CFrame = cf * CFrame.new(0, height / 2 + 0.05, 0)
 			carpet.CanCollide = false
+			for _, sx in { -1, 1 } do
+				local rod = part(parent, "StairRod", V(0.12, 0.12, tread * 0.9), Vector3.zero, HouseKit.BRASS, Enum.Material.Metal)
+				rod.CFrame = cf * CFrame.new(sx * (s.width / 2 - 1.1), height / 2 + 0.1, 0)
+				rod.CanCollide = false
+			end
 		end
 	end
-	-- balustrade on the side facing the room's middle (the other side is a wall)
-	local inner = if low.center.X < s.lx then -1 else 1
-	local x = s.lx + inner * (s.width / 2 - 0.25)
-	balustrade(parent, V(x, yLow, s.lz), V(x, yHigh, s.hz), 4.4)
+	-- balustrades: a straight flight against a wall only needs one on the side toward the room
+	local sides = if s.cx then { -1, 1 } else { if low.center.X < s.lx then -1 else 1 }
+	local railPath = HouseGraph.stairPath(s, if s.cx then 8 else 1)
+	for _, side in sides do
+		for k = 1, #railPath - 1 do
+			local a, b = railPath[k], railPath[k + 1]
+			local dir = (b - a).Unit
+			local across = if s.cx then V(-dir.Z, 0, dir.X) * side else V(side, 0, 0)
+			local offset = across * (s.width / 2 - 0.25)
+			local ya = yLow + (yHigh - yLow) * (k - 1) / (#railPath - 1)
+			local yb = yLow + (yHigh - yLow) * k / (#railPath - 1)
+			balustrade(parent, a + offset + V(0, ya, 0), b + offset + V(0, yb, 0), 4.4, k == 1, k == #railPath - 1)
+		end
+	end
 end
 
 local function effect(className, name, props)
@@ -245,7 +262,7 @@ end
 -- A thin dark haze swallows the far end of every big room, so you never quite see what is there.
 local function applyLighting()
 	local atmosphere = Lighting:FindFirstChildOfClass("Atmosphere") or Instance.new("Atmosphere")
-	atmosphere.Density = 0.42
+	atmosphere.Density = 0.5
 	atmosphere.Offset = 0
 	atmosphere.Color = Color3.fromRGB(26, 24, 30)
 	atmosphere.Decay = Color3.fromRGB(10, 9, 13)
@@ -253,12 +270,14 @@ local function applyLighting()
 	atmosphere.Haze = 1.2
 	atmosphere.Parent = Lighting
 	Lighting.ClockTime = 0
-	Lighting.Brightness = 0.06
-	Lighting.Ambient = Color3.fromRGB(15, 16, 25)
-	Lighting.OutdoorAmbient = Color3.fromRGB(12, 13, 22)
+	Lighting.Brightness = 0.05
+	Lighting.Ambient = Color3.fromRGB(10, 10, 16)
+	Lighting.OutdoorAmbient = Color3.fromRGB(8, 9, 15)
+	Lighting.GlobalShadows = true
+	Lighting.ShadowSoftness = 0.12 -- crisp shadows from lamps and moonlight
 	Lighting.EnvironmentDiffuseScale = 0.05
 	Lighting.EnvironmentSpecularScale = 0.05
-	effect("ColorCorrectionEffect", "NightHunterGrade", { Saturation = -0.3, Contrast = 0.14, TintColor = Color3.fromRGB(224, 230, 255) })
+	effect("ColorCorrectionEffect", "NightHunterGrade", { Saturation = -0.4, Contrast = 0.24, Brightness = -0.02, TintColor = Color3.fromRGB(214, 222, 240) })
 	-- Bloom only on really bright things (lamps, lens); a low threshold made the whole beam glow.
 	effect("BloomEffect", "NightHunterBloom", { Intensity = 0.3, Size = 18, Threshold = 1.15 })
 end
@@ -371,7 +390,7 @@ function HouseBuilder.build(graph, opts)
 	spawn.Neutral = true
 	spawn.Duration = 0
 	spawn.Size = V(5, 0.4, 5)
-	spawn.Position = ORIGIN + V(0, 0.2, 35) -- inside the front door, clear of the pillar
+	spawn.Position = ORIGIN + V(0, 0.2, 49) -- in the open front of the hall, inside the front door
 	spawn.Color = Color3.fromRGB(70, 110, 160)
 	spawn.Transparency = 0.6
 	spawn.Parent = root

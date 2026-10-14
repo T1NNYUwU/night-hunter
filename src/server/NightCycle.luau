@@ -56,7 +56,7 @@ local HEARING = { 0.75, 0.8, 0.85, 0.9, 0.95, 1.0, 1.0 }
 -- The house is lit a little by day (to plan and shop), and nearly dark at night.
 local MOODS = {
 	day = { Ambient = Color3.fromRGB(40, 42, 58), OutdoorAmbient = Color3.fromRGB(36, 39, 56), Brightness = 0.2 },
-	night = { Ambient = Color3.fromRGB(13, 14, 22), OutdoorAmbient = Color3.fromRGB(11, 12, 20), Brightness = 0.04 },
+	night = { Ambient = Color3.fromRGB(8, 8, 13), OutdoorAmbient = Color3.fromRGB(7, 8, 13), Brightness = 0.03 },
 }
 local function setMood(name: string, seconds: number)
 	if seconds <= 0 then
