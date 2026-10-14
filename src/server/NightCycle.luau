@@ -309,7 +309,7 @@ function NightCycle.start(house)
 	-- A spot on the floor of `room` clear of its stairwell: a world position at floor height + lift.
 	local function floorPoint(room: number, lift: number): Vector3
 		local r = graph.rooms[room]
-		local spread = if #r.holes > 0 then 3 else 8
+		local spread = if #r.holes > 0 then 4 else 12
 		return origin + Vector3.new(r.center.X + rng:NextNumber(-spread, spread), r.floorY + lift, r.center.Z + rng:NextNumber(-spread, spread))
 	end
 

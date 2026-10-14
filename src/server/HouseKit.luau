@@ -25,9 +25,9 @@ HouseKit.MOON_LIGHT = Color3.fromRGB(150, 175, 255)
 
 -- Light levels (horror: dim). One place to tune the whole house.
 HouseKit.LAMP_BRIGHTNESS = 0.22
-HouseKit.LAMP_RANGE = 24
+HouseKit.LAMP_RANGE = 30
 HouseKit.CHANDELIER_BRIGHTNESS = 0.34
-HouseKit.CHANDELIER_RANGE = 34
+HouseKit.CHANDELIER_RANGE = 44
 HouseKit.CANDLE_BRIGHTNESS = 0.38
 HouseKit.WINDOW_BRIGHTNESS = 0.3
 

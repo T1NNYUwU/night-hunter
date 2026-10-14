@@ -8,24 +8,26 @@
 --   axisX   true: the wall runs along X (its position is a z `line`); false: along Z (an x `line`)
 --   lo, hi  extent along the wall;   a = room that owns it, b = room on the other side (nil = outside)
 --   aDir    which side of the line room `a` is on (-1 = lower coordinate, +1 = higher)
---   doorAt  position of a doorway along the wall (nil = solid);   entrance = it is the front door
+--   doorAt  position of a doorway along the wall (nil = solid), doorWidth its width (12+ = archway);
+--   entrance = it is the front door
 
 local HouseGraph = require(game:GetService("ReplicatedStorage"):WaitForChild("NightHunter"):WaitForChild("HouseGraph"))
 
 local Geometry = {}
 Geometry.WALL_THICK = 1
-Geometry.DOOR_WIDTH = 6.5
-Geometry.DOOR_HEIGHT = 9.5
-Geometry.ENTRANCE_WIDTH = 8
-Geometry.ENTRANCE_HEIGHT = 11
+Geometry.DOOR_WIDTH = 8
+Geometry.DOOR_HEIGHT = 11
+Geometry.ARCH_HEIGHT = 12.5 -- wide doorways (12+) are open archways without a door leaf
+Geometry.ENTRANCE_WIDTH = 10
+Geometry.ENTRANCE_HEIGHT = 13
 
-local function doorPosition(a: number, b: number): number?
+local function doorPosition(a: number, b: number): (number?, number?)
 	for _, d in HouseGraph.DOORS do
 		if (d[1] == a and d[2] == b) or (d[1] == b and d[2] == a) then
-			return d[3]
+			return d[3], d[4]
 		end
 	end
-	return nil
+	return nil, nil
 end
 
 -- Walls are built once: the E and S sides of each room emit the shared walls (and outer ones), the
@@ -82,7 +84,7 @@ function Geometry.segments(graph)
 					side = side,
 				}
 				if other then
-					seg.doorAt = doorPosition(room.id, other.id)
+					seg.doorAt, seg.doorWidth = doorPosition(room.id, other.id)
 					if seg.doorAt and (seg.doorAt < from or seg.doorAt > to) then
 						seg.doorAt = nil
 					end
@@ -118,7 +120,12 @@ function Geometry.doorSize(seg): (number, number)
 	if seg.entrance then
 		return Geometry.ENTRANCE_WIDTH, Geometry.ENTRANCE_HEIGHT
 	end
-	return Geometry.DOOR_WIDTH, Geometry.DOOR_HEIGHT
+	local width = seg.doorWidth or Geometry.DOOR_WIDTH
+	return width, if Geometry.isArch(seg) then Geometry.ARCH_HEIGHT else Geometry.DOOR_HEIGHT
+end
+
+function Geometry.isArch(seg): boolean
+	return not seg.entrance and (seg.doorWidth or 0) >= 12
 end
 
 -- A rectangle with a rectangular hole cut out of it -> up to four rectangles { x0, z0, x1, z1 }.

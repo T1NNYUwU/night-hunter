@@ -3,14 +3,15 @@
 -- hiding spot (wardrobe / cloth table) is a hide node hanging off its room. Reasoning on ~40 nodes
 -- instead of every stud is what keeps the AI cheap enough to run every 0.5 s.
 --
--- Three levels (each 15 studs apart, 14 studs of room inside): basement -1, ground floor 0,
--- upper floor 1. Rooms are rectangles in house-local studs (x east, z south, y up). Level 0 has
--- the grand entrance hall; its two staircases rise through a hole in the upper floor to the
--- Landing (a balcony over the hall), so the hall is two floors tall.
+-- Three floors, 17 studs apart (16 studs of room inside): FLOOR 1 (level 0), FLOOR 2 (level 1) and the
+-- BASEMENT (level -1). Rooms are big rectangles in house-local studs (x east, z south, y up) so there
+-- is room to run: 34 to 44 studs across, joined by wide doorways and open archways, every room with two
+-- or more ways out. Floor 1 has the grand entrance hall; its two staircases rise through a hole in
+-- floor 2 to the Landing (a balcony over the hall), so the hall is two floors tall.
 --
---   ground floor            upper floor              basement
---   Study  Living Kitchen   Nursery Gallery Master   Boiler Wine   Cold
---   Library  HALL  Dining   Guest  [Landing] Bath    Coal   Crypt  (nothing under Dining)
+--   floor 2                  floor 1                    basement
+--   Nursery Gallery Master   Study  Ballroom Kitchen    Boiler Wine   Cold
+--   Guest  [Landing] Bath    Library  HALL   Dining     Coal   Crypt  (nothing under Dining)
 --
 -- Positions are local to the house origin; room ids never change once a house is saved.
 
@@ -39,39 +40,39 @@ export type Graph = {
 	passages: { Passage },
 }
 
-local LEVEL_HEIGHT = 15 -- floor to floor
-local CLEAR = 14 -- floor to ceiling inside a room
+local LEVEL_HEIGHT = 17 -- floor to floor
+local CLEAR = 16 -- floor to ceiling inside a room
 local STEP_RISE = 1
 
 local ROOM_DEFS = {
-	-- ground floor (level 0)
-	{ name = "Entrance Hall", level = 0, x0 = -16, z0 = 0, x1 = 16, z1 = 32 },
-	{ name = "Library", level = 0, x0 = -40, z0 = 0, x1 = -16, z1 = 32 },
-	{ name = "Dining Room", level = 0, x0 = 16, z0 = 0, x1 = 40, z1 = 32 },
-	{ name = "Study", level = 0, x0 = -40, z0 = -32, x1 = -16, z1 = 0, holes = { { x0 = -40, z0 = -26, x1 = -34, z1 = -6 } } },
-	{ name = "Living Room", level = 0, x0 = -16, z0 = -32, x1 = 16, z1 = 0 },
-	{ name = "Kitchen", level = 0, x0 = 16, z0 = -32, x1 = 40, z1 = 0, holes = { { x0 = 34, z0 = -26, x1 = 40, z1 = -6 } } },
-	-- upper floor (level 1)
-	{ name = "Landing", level = 1, x0 = -16, z0 = 0, x1 = 16, z1 = 32, anchor = { 0, 4 }, holes = { { x0 = -16, z0 = 8, x1 = 16, z1 = 32 } } },
-	{ name = "Gallery", level = 1, x0 = -16, z0 = -32, x1 = 16, z1 = 0 },
-	{ name = "Guest Bedroom", level = 1, x0 = -40, z0 = 0, x1 = -16, z1 = 32 },
-	{ name = "Bathroom", level = 1, x0 = 16, z0 = 0, x1 = 40, z1 = 32 },
-	{ name = "Nursery", level = 1, x0 = -40, z0 = -32, x1 = -16, z1 = 0 },
-	{ name = "Master Bedroom", level = 1, x0 = 16, z0 = -32, x1 = 40, z1 = 0 },
+	-- floor 1 (level 0)
+	{ name = "Entrance Hall", level = 0, x0 = -22, z0 = 0, x1 = 22, z1 = 44, anchor = { 0, 10 } }, -- (not the middle: the pillar stands there)
+	{ name = "Library", level = 0, x0 = -56, z0 = 0, x1 = -22, z1 = 44 },
+	{ name = "Dining Room", level = 0, x0 = 22, z0 = 0, x1 = 56, z1 = 44 },
+	{ name = "Study", level = 0, x0 = -56, z0 = -36, x1 = -22, z1 = 0, holes = { { x0 = -56, z0 = -28, x1 = -49, z1 = -4 } } },
+	{ name = "Ballroom", level = 0, x0 = -22, z0 = -36, x1 = 22, z1 = 0 },
+	{ name = "Kitchen", level = 0, x0 = 22, z0 = -36, x1 = 56, z1 = 0, holes = { { x0 = 49, z0 = -28, x1 = 56, z1 = -4 } } },
+	-- floor 2 (level 1)
+	{ name = "Landing", level = 1, x0 = -22, z0 = 0, x1 = 22, z1 = 44, anchor = { 0, 7 }, holes = { { x0 = -22, z0 = 14, x1 = 22, z1 = 44 } } },
+	{ name = "Gallery", level = 1, x0 = -22, z0 = -36, x1 = 22, z1 = 0 },
+	{ name = "Guest Bedroom", level = 1, x0 = -56, z0 = 0, x1 = -22, z1 = 44 },
+	{ name = "Bathroom", level = 1, x0 = 22, z0 = 0, x1 = 56, z1 = 44 },
+	{ name = "Nursery", level = 1, x0 = -56, z0 = -36, x1 = -22, z1 = 0 },
+	{ name = "Master Bedroom", level = 1, x0 = 22, z0 = -36, x1 = 56, z1 = 0 },
 	-- basement (level -1)
-	{ name = "Boiler Room", level = -1, x0 = -40, z0 = -32, x1 = -16, z1 = 0 },
-	{ name = "Wine Cellar", level = -1, x0 = -16, z0 = -32, x1 = 16, z1 = 0 },
-	{ name = "Cold Storage", level = -1, x0 = 16, z0 = -32, x1 = 40, z1 = 0 },
-	{ name = "Crypt", level = -1, x0 = -16, z0 = 0, x1 = 16, z1 = 32 },
-	{ name = "Coal Cellar", level = -1, x0 = -40, z0 = 0, x1 = -16, z1 = 32 },
+	{ name = "Boiler Room", level = -1, x0 = -56, z0 = -36, x1 = -22, z1 = 0 },
+	{ name = "Wine Cellar", level = -1, x0 = -22, z0 = -36, x1 = 22, z1 = 0 },
+	{ name = "Cold Storage", level = -1, x0 = 22, z0 = -36, x1 = 56, z1 = 0 },
+	{ name = "Crypt", level = -1, x0 = -22, z0 = 0, x1 = 22, z1 = 44 },
+	{ name = "Coal Cellar", level = -1, x0 = -56, z0 = 0, x1 = -22, z1 = 44 },
 }
 
--- Doors between rooms of the same level: { roomA, roomB, position along the shared wall }
--- (x for a wall that runs along X, z for a wall that runs along Z).
+-- Doorways between rooms of the same level: { roomA, roomB, position along the shared wall, width }
+-- (x for a wall that runs along X, z for a wall that runs along Z). 8 = a door; 12 = an open archway.
 local DOORS = {
-	{ 1, 2, 4 }, { 1, 3, 4 }, { 1, 5, 0 }, { 2, 4, -28 }, { 3, 6, 28 }, { 4, 5, -16 }, { 5, 6, -16 },
-	{ 7, 8, 0 }, { 7, 9, 4 }, { 7, 10, 4 }, { 8, 11, -16 }, { 8, 12, -16 }, { 9, 11, -28 }, { 10, 12, 28 },
-	{ 13, 14, -16 }, { 14, 15, -16 }, { 14, 16, 0 }, { 13, 17, -28 }, { 17, 16, 16 },
+	{ 1, 2, 7, 12 }, { 1, 3, 7, 12 }, { 1, 5, 0, 12 }, { 2, 4, -39, 8 }, { 3, 6, 39, 8 }, { 4, 5, -18, 8 }, { 5, 6, -18, 8 },
+	{ 7, 8, 0, 12 }, { 7, 9, 7, 8 }, { 7, 10, 7, 8 }, { 8, 11, -18, 8 }, { 8, 12, -18, 8 }, { 9, 11, -39, 8 }, { 10, 12, 39, 8 },
+	{ 13, 14, -18, 8 }, { 14, 15, -18, 8 }, { 14, 16, 0, 12 }, { 13, 17, -39, 8 }, { 17, 16, 22, 8 },
 }
 
 -- Staircases: the foot is in `low`, the top in `high`; width across, 1 stud rise per step.
@@ -79,10 +80,10 @@ local DOORS = {
 -- Both ends open onto floor (the foot toward the room, the top toward the upper room); the open side
 -- of the flight gets a balustrade.
 local STAIRS = {
-	{ low = 1, high = 7, lx = -13, lz = 28, hx = -13, hz = 8, width = 6 }, -- hall, west flight
-	{ low = 1, high = 7, lx = 13, lz = 28, hx = 13, hz = 8, width = 6 }, -- hall, east flight
-	{ low = 15, high = 6, lx = 37, lz = -6, hx = 37, hz = -26, width = 6 }, -- cold storage up to the kitchen
-	{ low = 13, high = 4, lx = -37, lz = -6, hx = -37, hz = -26, width = 6 }, -- boiler room up to the study
+	{ low = 1, high = 7, lx = -18.5, lz = 40, hx = -18.5, hz = 14, width = 7 }, -- hall, west flight
+	{ low = 1, high = 7, lx = 18.5, lz = 40, hx = 18.5, hz = 14, width = 7 }, -- hall, east flight
+	{ low = 15, high = 6, lx = 52.5, lz = -4, hx = 52.5, hz = -28, width = 7 }, -- cold storage up to the kitchen
+	{ low = 13, high = 4, lx = -52.5, lz = -4, hx = -52.5, hz = -28, width = 7 }, -- boiler room up to the study
 }
 
 -- The front door of the mansion (outer wall of a room): { room, side, position along the wall }.
@@ -92,30 +93,30 @@ local ENTRANCE = { room = 1, side = "S", at = 0 }
 -- (offset from the room's centre along that wall); tables stand at (x, z) from the centre.
 -- Wardrobes come first and tables are appended, so existing node ids never move when one is added.
 local HIDES = {
-	{ room = 1, wall = "N", along = -9 },
-	{ room = 2, wall = "W", along = 8 },
-	{ room = 3, wall = "E", along = 8 },
-	{ room = 4, wall = "N", along = 8.5 },
-	{ room = 5, wall = "N", along = -10 },
-	{ room = 6, wall = "N", along = -6 },
-	{ room = 7, wall = "N", along = -7 },
-	{ room = 8, wall = "N", along = 8 },
-	{ room = 9, wall = "W", along = 8 },
-	{ room = 10, wall = "E", along = 9 },
-	{ room = 11, wall = "W", along = -8 },
-	{ room = 12, wall = "E", along = -8 },
-	{ room = 13, wall = "N", along = 8 },
-	{ room = 14, wall = "N", along = -9 },
-	{ room = 15, wall = "N", along = -6 },
-	{ room = 16, wall = "S", along = 8 },
-	{ room = 16, wall = "E", along = 8 },
-	{ room = 17, wall = "W", along = 8 },
-	{ room = 2, x = -4, z = 6, spot = "table" }, -- Library reading table
-	{ room = 3, x = -2, z = 6, spot = "table" }, -- Dining table
-	{ room = 4, x = 4, z = 4, spot = "table" }, -- Study desk
-	{ room = 6, x = -4, z = 6, spot = "table" }, -- Kitchen table
-	{ room = 12, x = -4, z = 6, spot = "table" }, -- Dressing table
-	{ room = 15, x = -4, z = 6, spot = "table" }, -- Butcher's slab
+	{ room = 1, wall = "N", along = -12 },
+	{ room = 2, wall = "W", along = 10 },
+	{ room = 3, wall = "E", along = 10 },
+	{ room = 4, wall = "N", along = 10 },
+	{ room = 5, wall = "N", along = -14 },
+	{ room = 6, wall = "N", along = -8 },
+	{ room = 7, wall = "N", along = -11 },
+	{ room = 8, wall = "N", along = 12 },
+	{ room = 9, wall = "W", along = 10 },
+	{ room = 10, wall = "E", along = 10 },
+	{ room = 11, wall = "W", along = -10 },
+	{ room = 12, wall = "E", along = -10 },
+	{ room = 13, wall = "N", along = 10 },
+	{ room = 14, wall = "N", along = -12 },
+	{ room = 15, wall = "N", along = -8 },
+	{ room = 16, wall = "S", along = 12 },
+	{ room = 16, wall = "E", along = 10 },
+	{ room = 17, wall = "W", along = 10 },
+	{ room = 2, x = -6, z = 8, spot = "table" }, -- Library reading table
+	{ room = 3, x = 0, z = 8, spot = "table" }, -- Dining table
+	{ room = 4, x = 6, z = 6, spot = "table" }, -- Study desk
+	{ room = 6, x = -6, z = 8, spot = "table" }, -- Kitchen table
+	{ room = 12, x = -6, z = 8, spot = "table" }, -- Dressing table
+	{ room = 15, x = -6, z = 8, spot = "table" }, -- Butcher's slab
 }
 
 -- Where a wardrobe's centre sits against its wall (the wall's inner face is 0.5 from the room edge).
@@ -141,12 +142,13 @@ for i, def in ROOM_DEFS do
 end
 
 local HouseGraph = {}
-HouseGraph.ROOM_SIZE = 28 -- typical distance between two neighbouring rooms (the AI's travel-time estimate)
+HouseGraph.ROOM_SIZE = 38 -- typical distance between two neighbouring rooms (the AI's travel-time estimate)
 HouseGraph.LEVEL_HEIGHT = LEVEL_HEIGHT
 HouseGraph.CLEAR = CLEAR
 HouseGraph.STEP_RISE = STEP_RISE
 HouseGraph.SPAWN_ROOM = 1
 HouseGraph.DEFAULT_LAIR = 16 -- the crypt under the hall
+HouseGraph.LEVEL_NAMES = { [-1] = "BASEMENT", [0] = "FLOOR 1", [1] = "FLOOR 2" }
 HouseGraph.ROOMS = ROOM_LIST
 HouseGraph.DOORS = DOORS
 HouseGraph.STAIRS = STAIRS
@@ -280,7 +282,7 @@ end
 -- A fingerprint of the layout. The house saved in the place stores it, so a stale house
 -- (built before the graph changed) is detected and rebuilt instead of silently disagreeing.
 function HouseGraph.signature(graph: Graph): string
-	local parts = { ("mansion v1 levels %d"):format(#graph.rooms) }
+	local parts = { ("mansion v2 rooms %d"):format(#graph.rooms) }
 	for _, r in graph.rooms do
 		table.insert(parts, ("%s:%d:%g,%g,%g,%g"):format(r.name, r.level, r.x0, r.z0, r.x1, r.z1))
 	end

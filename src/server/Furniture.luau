@@ -27,7 +27,7 @@ local DIRTY_WHITE, BRASS, METAL, WARM_LIGHT = HouseKit.DIRTY_WHITE, HouseKit.BRA
 local WALL_FACE, WALL_YAW = HouseKit.WALL_FACE, HouseKit.WALL_YAW
 
 local Furniture = {}
-Furniture.VERSION = 2 -- bump when FurnitureLayout changes; saved furniture is NOT rebuilt automatically
+Furniture.VERSION = 3 -- bump when FurnitureLayout changes; saved furniture is NOT rebuilt automatically
 Furniture.HIDE_TAG = "NightHunterHideSpot"
 
 local V = Vector3.new
@@ -266,7 +266,9 @@ local CATALOG = {
 	boxPile = item(V(3, 3.4, 4), Color3.fromRGB(150, 120, 80), Enum.Material.Cardboard, builders.boxPile),
 	candle = item(V(0.3, 1.2, 0.3), DIRTY_WHITE, Enum.Material.SmoothPlastic, builders.candle),
 	candelabra = item(V(0.9, 3.2, 0.9), BRASS, Enum.Material.Metal, builders.candelabra, "Candelabra"),
-	painting = item(V(3, 4, 0.2), BRASS, Enum.Material.Metal, builders.painting),
+	painting = item(V(3, 4, 0.2), BRASS, Enum.Material.Metal, builders.painting, "Decor_Frame", { wallHung = true }),
+	mirror = item(V(3, 4.8, 0.2), BRASS, Enum.Material.Metal, builders.painting, "Decor_Mirror", { wallHung = true }),
+	candlesticks = item(V(1.4, 2.1, 0.5), BRASS, Enum.Material.Metal, builders.candle, "Decor_Candlesticks"),
 	rug = item(V(8, 0.07, 6), HouseKit.CLOTH_RED, Enum.Material.Fabric, builders.rug),
 	sofa = item(V(8, 4, 3), HouseKit.CLOTH_RED, Enum.Material.Fabric, builders.armchair),
 	piano = item(V(7, 4.6, 3), Color3.fromRGB(22, 20, 22), Enum.Material.Wood, block(true)),
@@ -274,9 +276,11 @@ local CATALOG = {
 	boiler = item(V(6, 9, 6), Color3.fromRGB(70, 64, 60), Enum.Material.CorrodedMetal, block(false)),
 	coffin = item(V(3, 2.6, 7.5), WOOD_DARK, Enum.Material.Wood, block(true)),
 	slab = item(V(4, 3.2, 8), Color3.fromRGB(150, 154, 152), Enum.Material.Metal, block(false)),
-	longTable = item(V(12, 3.1, 4.5), WOOD_DARK, Enum.Material.Wood, builders.smallTable),
+	longTable = item(V(4.5, 3.3, 6.7), WOOD_DARK, Enum.Material.Wood, builders.smallTable, "Furniture_Table"),
 	-- Library art only (nothing is drawn in "blocks" style):
 	cobweb = item(V(15.2, 2.8, 15.7), DIRTY_WHITE, Enum.Material.Fabric, nil, "Cobwebs", { assetOnly = true }),
+	antlers = item(V(2.8, 3.9, 1.8), BRASS, Enum.Material.Metal, nil, "Decor_Antlers", { assetOnly = true, wallHung = true }),
+	statuette = item(V(1.1, 2.2, 1), DIRTY_WHITE, Enum.Material.Marble, nil, "Decor_Statuette", { assetOnly = true }),
 }
 
 function Furniture.size(kind: string): Vector3
@@ -324,6 +328,11 @@ local function makePiece(folder, kind: string, room: number, base: CFrame, style
 	model.Name = (opts.name or kind:sub(1, 1):upper() .. kind:sub(2))
 	local usedAsset = false
 	if style == "assets" and entry.asset then
+		local template = HouseKit.libraryModel(entry.asset)
+		local assetSize = template and template:GetAttribute("Size")
+		if entry.wallHung and opts.size and assetSize then
+			scale = opts.size.Y / assetSize.Y -- a picture asked for at this height
+		end
 		usedAsset = placeAsset(model, entry, base, scale)
 	end
 	if not usedAsset then
@@ -341,6 +350,51 @@ local function makePiece(folder, kind: string, room: number, base: CFrame, style
 		light(glow, WARM_LIGHT, 11, HouseKit.CANDLE_BRIGHTNESS, true)
 	end
 	model.WorldPivot = base
+	-- Shelves are full of old books (a few gaps, a few leaning), whatever the shelf is made of.
+	if kind == "shelf" and not opts.empty then
+		local rng = Random.new(opts.seed or math.floor(base.Position.X * 13 + base.Position.Z * 7))
+		local colors = { Color3.fromRGB(70, 20, 20), Color3.fromRGB(30, 44, 30), Color3.fromRGB(60, 42, 26), Color3.fromRGB(26, 30, 50), Color3.fromRGB(22, 18, 16), Color3.fromRGB(96, 80, 54) }
+		local width = entry.size.X * scale - 1.2
+		for level = 0, 3 do
+			local x = -width / 2
+			local y = (0.55 + level * 2.1) * scale
+			while x < width / 2 - 0.5 do
+				if rng:NextNumber() < 0.12 then
+					x += rng:NextNumber(0.8, 2) -- a gap
+				else
+					local w, h = rng:NextNumber(0.3, 0.6), rng:NextNumber(1.1, 1.7) * scale
+					local lean = if rng:NextNumber() < 0.08 then math.rad(rng:NextNumber(10, 25)) else 0
+					local book = box(model, "Book", V(w, h, 1.5), base * CFrame.new(x + w / 2, y + h / 2, 0.1) * CFrame.Angles(0, 0, lean), colors[rng:NextInteger(1, #colors)], Enum.Material.Fabric, false)
+					book.CastShadow = false
+					x += w + 0.02
+				end
+			end
+		end
+	end
+	-- Neglect: a dust sheet thrown over it, knocked onto its back, or hanging crooked.
+	if opts.sheet then
+		local cf, size = model:GetBoundingBox()
+		local cloth = Color3.fromRGB(128, 124, 116)
+		local sheet = box(model, "DustSheet", size + V(0.3, 0.15, 0.3), cf * CFrame.new(0, 0.08, 0), cloth, Enum.Material.Fabric)
+		sheet.CastShadow = true
+		-- the cloth sags over the top and spreads at the floor
+		box(model, "SheetTop", V(size.X * 0.8, 0.5, size.Z * 0.8), cf * CFrame.new(0, size.Y / 2 + 0.25, 0), cloth, Enum.Material.Fabric, false)
+		box(model, "SheetHem", V(size.X + 1, 0.7, size.Z + 1), cf * CFrame.new(0, -size.Y / 2 + 0.35, 0), cloth:Lerp(Color3.new(0, 0, 0), 0.12), Enum.Material.Fabric, false)
+		for _, d in model:GetDescendants() do
+			if d:IsA("BasePart") and d ~= sheet and d.Name ~= "SheetHem" and d.Name ~= "SheetTop" then
+				d.Transparency = 1 -- only the sheet shows; the shape under it is what it was
+				d.CanCollide = false
+			end
+		end
+	end
+	if opts.tipped then
+		model:PivotTo(base * CFrame.new(0, 0.5, 0) * CFrame.Angles(math.rad(-82), 0, 0))
+		model.WorldPivot = base
+	end
+	if opts.tilt then
+		local cf = model:GetBoundingBox()
+		model:PivotTo(cf * CFrame.Angles(0, 0, math.rad(opts.tilt)) * cf:ToObjectSpace(model:GetPivot()))
+	end
 	model:SetAttribute("Kind", kind)
 	model:SetAttribute("Room", room)
 	model:SetAttribute("Placeholder", not usedAsset)
@@ -422,7 +476,7 @@ end
 -- edits are lost: only call it on purpose (HouseBuilder.build(graph, { furniture = "reseed" })).
 -- style: "blocks" (default) = rough placeholders, "assets" = library models where one exists.
 function Furniture.seed(root: Instance, graph, origin: Vector3, style: string?)
-	style = if style == "assets" then "assets" else "blocks"
+	style = if style == "blocks" then "blocks" else "assets" -- real models where the library has one
 	local old = root:FindFirstChild("Furniture")
 	if old then
 		old:Destroy()
@@ -459,11 +513,14 @@ function Furniture.seed(root: Instance, graph, origin: Vector3, style: string?)
 			opts = opts or {}
 			opts.color = color
 			opts.size = V(w, h, 0.2)
-			local d = faceDist(room, side) - 0.25
+			local entry = CATALOG[opts.kind or "painting"]
+			local template = style == "assets" and entry.asset and HouseKit.libraryModel(entry.asset)
+			local assetSize = template and template:GetAttribute("Size")
+			local depth = if assetSize then assetSize.Z * h / assetSize.Y else 0.4
+			local d = faceDist(room, side) - depth / 2 - 0.05
 			local x = if side == "W" then -d elseif side == "E" then d else along
 			local z = if side == "N" then -d elseif side == "S" then d else along
-			local yaw = if side == "N" or side == "S" then 0 else 90
-			return makePiece(roomFolder, opts.kind or "painting", roomId, at(x, opts.y or 8, z, yaw), style, opts)
+			return makePiece(roomFolder, opts.kind or "painting", roomId, at(x, opts.y or 8, z, WALL_YAW[side]), style, opts)
 		end
 		function ctx.rug(x, z, w, d, color)
 			return makePiece(roomFolder, "rug", roomId, at(x, 0, z, 0), style, { size = V(w, 0.07, d), color = color })

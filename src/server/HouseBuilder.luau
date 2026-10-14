@@ -30,14 +30,12 @@ local HouseGeometry = require(script.Parent.HouseGeometry)
 local Furniture = require(script.Parent.Furniture)
 
 local HOUSE_NAME = "NightHunterHouse"
-local LAYOUT = 3 -- house structure version: 3 = the three-level mansion (older houses are rebuilt whole)
+local LAYOUT = 4 -- house structure version: 4 = the roomy three-floor mansion (older houses are rebuilt whole)
 local ORIGIN = Vector3.new(0, 50, 0)
 local LEVEL = HouseGraph.LEVEL_HEIGHT
 local CLEAR = HouseGraph.CLEAR
 local STEP = HouseGraph.STEP_RISE
 local THICK = HouseGeometry.WALL_THICK
-local DOOR_WIDTH = HouseGeometry.DOOR_WIDTH
-local DOOR_HEIGHT = HouseGeometry.DOOR_HEIGHT
 
 local WALL_COLOR = Color3.fromRGB(62, 46, 38) -- shows only as door jambs and lintels
 local TRIM_COLOR = Color3.fromRGB(44, 31, 24)
@@ -49,11 +47,11 @@ local V = Vector3.new
 -- Railings around stairwells: { x1, z1, x2, z2, floorY } (house-local). The openings stay open where
 -- the stairs arrive.
 local RAILS = {
-	{ -10, 8, 10, 8, 15 }, -- the landing balcony, between the tops of the two hall staircases
-	{ -34, -26, -34, -6, 0 }, -- study stairwell, west edge
-	{ -40, -6, -34, -6, 0 }, -- study stairwell, south edge
-	{ 34, -26, 34, -6, 0 }, -- kitchen stairwell, west edge
-	{ 34, -6, 40, -6, 0 }, -- kitchen stairwell, south edge
+	{ -15, 14, 15, 14, LEVEL }, -- the landing balcony, between the tops of the two hall staircases
+	{ -49, -28, -49, -4, 0 }, -- study stairwell, east edge
+	{ -56, -4, -49, -4, 0 }, -- study stairwell, south edge
+	{ 49, -28, 49, -4, 0 }, -- kitchen stairwell, west edge
+	{ 49, -4, 56, -4, 0 }, -- kitchen stairwell, south edge
 }
 
 local HouseBuilder = {}
@@ -73,39 +71,57 @@ local function part(parent, name, size, position, color, material, transparency)
 	return p
 end
 
--- A doorway's frame (jambs + header, a little proud of the wall) and a door standing open.
+-- A doorway's frame (jambs + header, a little proud of the wall) and a door standing open; a wide
+-- doorway is an open archway instead: heavy pilasters and a deep header, no door.
 -- wallCF: the doorway's floor centre, local X along the wall, local Z through it.
-local function doorway(parent, wallCF: CFrame, seed: number)
+local function doorway(parent, wallCF: CFrame, seed: number, width: number, height: number, arch: boolean)
 	local m = Instance.new("Model")
-	m.Name = "Doorway"
-	local function trim(name, size, offset)
-		local p = part(m, name, size, Vector3.zero, TRIM_COLOR, Enum.Material.Wood)
+	m.Name = if arch then "Archway" else "Doorway"
+	local function trim(name, size, offset, color, material)
+		local p = part(m, name, size, Vector3.zero, color or TRIM_COLOR, material or Enum.Material.Wood)
 		p.CFrame = wallCF * CFrame.new(offset)
 		p.CanCollide = false
 		return p
 	end
-	for _, sx in { -1, 1 } do
-		trim("Jamb", V(0.5, DOOR_HEIGHT, 1.4), V(sx * (DOOR_WIDTH / 2 + 0.25), DOOR_HEIGHT / 2, 0))
+	if arch then
+		for _, sx in { -1, 1 } do
+			trim("Pilaster", V(1.2, height, 1.8), V(sx * (width / 2 + 0.6), height / 2, 0))
+			trim("PilasterBase", V(1.6, 1, 2.2), V(sx * (width / 2 + 0.6), 0.5, 0))
+			trim("PilasterCap", V(1.8, 0.6, 2.3), V(sx * (width / 2 + 0.6), height - 0.3, 0))
+			-- the corners of the arch: two steps down from the header
+			trim("Spandrel", V(2, 1.2, 1.6), V(sx * (width / 2 - 1), height - 0.6, 0))
+			trim("Spandrel", V(1, 1, 1.6), V(sx * (width / 2 - 2.5), height - 0.5, 0))
+		end
+		trim("Header", V(width + 3.6, 1.2, 2), V(0, height + 0.6, 0))
+		trim("Keystone", V(1.2, 1.8, 2.2), V(0, height + 0.5, 0), HouseKit.WOOD, Enum.Material.Wood)
+		m.Parent = parent
+		return m
 	end
-	trim("Header", V(DOOR_WIDTH + 1, 0.5, 1.4), V(0, DOOR_HEIGHT + 0.25, 0))
+	for _, sx in { -1, 1 } do
+		trim("Jamb", V(0.6, height, 1.5), V(sx * (width / 2 + 0.3), height / 2, 0))
+	end
+	trim("Header", V(width + 1.6, 0.8, 1.6), V(0, height + 0.4, 0))
+	trim("Pediment", V(width + 2.4, 0.4, 1.8), V(0, height + 1, 0))
 
 	-- The door leaf, hinged on one jamb and left open (a different angle at each doorway).
 	local rng = Random.new(seed)
 	local side = if rng:NextNumber() < 0.5 then -1 else 1 -- which jamb
 	local swing = if rng:NextNumber() < 0.5 then -1 else 1 -- into which room
 	local angle = math.rad(rng:NextNumber(62, 100)) * swing
-	local leafW, leafH = DOOR_WIDTH - 0.5, DOOR_HEIGHT - 0.3
-	local hinge = wallCF * CFrame.new(side * (DOOR_WIDTH / 2 - 0.2), 0, 0) * CFrame.Angles(0, angle, 0)
+	local leafW, leafH = width - 0.5, height - 0.3
+	local hinge = wallCF * CFrame.new(side * (width / 2 - 0.2), 0, 0) * CFrame.Angles(0, angle, 0)
 	local function onLeaf(name, size, offset, color, material)
 		local p = part(m, name, size, Vector3.zero, color, material)
 		p.CFrame = hinge * CFrame.new(-side * leafW / 2, 0, 0) * CFrame.new(offset)
 		p.CanCollide = false
 		return p
 	end
-	onLeaf("Leaf", V(leafW, leafH, 0.28), V(0, leafH / 2 + 0.05, 0), HouseKit.WOOD, Enum.Material.Wood)
+	onLeaf("Leaf", V(leafW, leafH, 0.3), V(0, leafH / 2 + 0.05, 0), HouseKit.WOOD, Enum.Material.Wood)
 	for _, sz in { -1, 1 } do
-		onLeaf("Panel", V(leafW - 1.2, leafH - 1.6, 0.06), V(0, leafH / 2 + 0.05, sz * 0.16), HouseKit.WOOD_DARK, Enum.Material.Wood)
-		onLeaf("Knob", V(0.28, 0.28, 0.28), V(side * (leafW / 2 - 0.5), 4.4, sz * 0.3), HouseKit.BRASS, Enum.Material.Metal)
+		for _, py in { leafH * 0.3, leafH * 0.72 } do
+			onLeaf("Panel", V(leafW - 1.6, leafH * 0.34, 0.06), V(0, py, sz * 0.17), HouseKit.WOOD_DARK, Enum.Material.Wood)
+		end
+		onLeaf("Knob", V(0.3, 0.3, 0.3), V(side * (leafW / 2 - 0.6), 4.6, sz * 0.32), HouseKit.BRASS, Enum.Material.Metal)
 	end
 	m.Parent = parent
 	return m
@@ -134,7 +150,7 @@ local function buildWall(walls, doors, seg, seed: number)
 	if not seg.entrance then
 		local at = if seg.axisX then V(seg.doorAt, seg.floorY, seg.line) else V(seg.line, seg.floorY, seg.doorAt)
 		local wallCF = CFrame.new(ORIGIN + at) * (if seg.axisX then CFrame.new() else CFrame.Angles(0, math.pi / 2, 0))
-		doorway(doors, wallCF, seed)
+		doorway(doors, wallCF, seed, width, height, HouseGeometry.isArch(seg))
 	end
 end
 
@@ -161,12 +177,28 @@ end
 local function balustrade(parent, a: Vector3, b: Vector3, height: number)
 	local mid = (a + b) / 2
 	local length = (b - a).Magnitude
-	local cf = if length < 0.01 then CFrame.new(mid) else CFrame.lookAt(ORIGIN + mid, ORIGIN + b)
-	local panel = part(parent, "Balustrade", V(0.5, height, length), Vector3.zero, WALL_COLOR, Enum.Material.Wood)
-	panel.CFrame = cf * CFrame.new(0, height / 2, 0)
-	local cap = part(parent, "Handrail", V(0.9, 0.35, length), Vector3.zero, HouseKit.WOOD_LIGHT, Enum.Material.Wood)
-	cap.CFrame = cf * CFrame.new(0, height + 0.17, 0)
+	local cf = if length < 0.01 then CFrame.new(ORIGIN + mid) else CFrame.lookAt(ORIGIN + mid, ORIGIN + b)
+	-- an invisible panel stops anyone falling; what you see is an open row of turned posts
+	local guard = part(parent, "RailGuard", V(0.4, height + 0.8, length), Vector3.zero, WALL_COLOR, Enum.Material.Wood, 1)
+	guard.CFrame = cf * CFrame.new(0, (height + 0.8) / 2, 0)
+	guard.CastShadow = false
+	local cap = part(parent, "Handrail", V(0.8, 0.4, length), Vector3.zero, HouseKit.WOOD_DARK, Enum.Material.Wood)
+	cap.CFrame = cf * CFrame.new(0, height + 0.2, 0)
 	cap.CanCollide = false
+	local base = part(parent, "RailBase", V(0.7, 0.4, length), Vector3.zero, HouseKit.WOOD_DARK, Enum.Material.Wood)
+	base.CFrame = cf * CFrame.new(0, 0.2, 0)
+	base.CanCollide = false
+	local count = math.max(2, math.floor(length / 1.4))
+	for i = 0, count do
+		local t = -length / 2 + i * length / count
+		local post = part(parent, if i == 0 or i == count then "Newel" else "Baluster", Vector3.zero, Vector3.zero, HouseKit.WOOD, Enum.Material.Wood)
+		local newel = i == 0 or i == count
+		post.Size = if newel then V(0.9, height + 0.9, 0.9) else V(0.32, height, 0.32)
+		-- upright even on a sloping rail: place by position along the rail, then stand it straight
+		local at = (cf * CFrame.new(0, 0, t)).Position
+		post.CFrame = CFrame.new(at + Vector3.new(0, post.Size.Y / 2, 0))
+		post.CanCollide = false
+	end
 end
 
 -- One staircase: solid steps (1 stud rise each) from the foot up to the top, a carpet runner on the
@@ -210,7 +242,16 @@ local function effect(className, name, props)
 end
 
 -- Cold, nearly black night; a few warm lamps and candles carry the colour. The flashlight does the rest.
+-- A thin dark haze swallows the far end of every big room, so you never quite see what is there.
 local function applyLighting()
+	local atmosphere = Lighting:FindFirstChildOfClass("Atmosphere") or Instance.new("Atmosphere")
+	atmosphere.Density = 0.42
+	atmosphere.Offset = 0
+	atmosphere.Color = Color3.fromRGB(26, 24, 30)
+	atmosphere.Decay = Color3.fromRGB(10, 9, 13)
+	atmosphere.Glare = 0
+	atmosphere.Haze = 1.2
+	atmosphere.Parent = Lighting
 	Lighting.ClockTime = 0
 	Lighting.Brightness = 0.06
 	Lighting.Ambient = Color3.fromRGB(15, 16, 25)
@@ -292,6 +333,7 @@ function HouseBuilder.build(graph, opts)
 	root:SetAttribute("Layout", LAYOUT)
 	root:SetAttribute("Signature", HouseGraph.signature(graph))
 	root:SetAttribute("ShellVersion", HouseDecor.VERSION)
+	root:SetAttribute("Origin", ORIGIN) -- the HUD works out which floor/room you are in from this
 	-- No applyLighting() here: building in Edit mode must not darken the editor.
 	-- ensure() applies the night look when the game actually runs.
 
@@ -329,7 +371,7 @@ function HouseBuilder.build(graph, opts)
 	spawn.Neutral = true
 	spawn.Duration = 0
 	spawn.Size = V(5, 0.4, 5)
-	spawn.Position = ORIGIN + V(0, 0.2, 25) -- inside the front door, clear of the pillar
+	spawn.Position = ORIGIN + V(0, 0.2, 35) -- inside the front door, clear of the pillar
 	spawn.Color = Color3.fromRGB(70, 110, 160)
 	spawn.Transparency = 0.6
 	spawn.Parent = root

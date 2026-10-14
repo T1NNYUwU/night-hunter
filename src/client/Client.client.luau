@@ -18,6 +18,7 @@ local player = Players.LocalPlayer
 local Shared = ReplicatedStorage:WaitForChild("NightHunter")
 local Sounds = require(Shared:WaitForChild("Sounds"))
 local Items = require(Shared:WaitForChild("Items"))
+local HouseGraph = require(Shared:WaitForChild("HouseGraph"))
 local TitleScreen = require(script.Parent:WaitForChild("TitleScreen"))
 local ShopPanel = require(script.Parent:WaitForChild("ShopPanel"))
 local HideView = require(script.Parent:WaitForChild("HideView"))
@@ -135,7 +136,7 @@ local function label(props)
 	return l
 end
 
-local info = label({ bg = 0.35, frame = UDim2.fromOffset(280, 64), pos = UDim2.fromOffset(12, 48), alignX = Enum.TextXAlignment.Left, alignY = Enum.TextYAlignment.Top })
+local info = label({ bg = 0.35, frame = UDim2.fromOffset(280, 80), pos = UDim2.fromOffset(12, 48), alignX = Enum.TextXAlignment.Left, alignY = Enum.TextYAlignment.Top })
 local padding = Instance.new("UIPadding")
 padding.PaddingLeft = UDim.new(0, 10)
 padding.PaddingTop = UDim.new(0, 8)
@@ -433,11 +434,22 @@ while true do
 	shop.update()
 	peaceTag.Text = if state:GetAttribute("Peace") == true then "PEACE MODE: no hunter, no music, the night never ends" .. (if RunService:IsStudio() then "  (P to turn off)" else "") else ""
 
-	info.Text = ("NIGHT %d / %d   ·   %s %s\n%s"):format(
+	-- Where am I: "FLOOR 1  ·  Library" (floors: basement, floor 1, floor 2)
+	local whereText = ""
+	local house = Workspace:FindFirstChild("NightHunterHouse")
+	local origin = house and house:GetAttribute("Origin")
+	local root = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+	local roomId = origin and root and HouseGraph.roomAt(root.Position - origin)
+	if roomId then
+		local r = HouseGraph.ROOMS[roomId]
+		whereText = ("%s  ·  %s"):format(HouseGraph.LEVEL_NAMES[r.level] or "", r.name)
+	end
+	info.Text = ("NIGHT %d / %d   ·   %s %s\n%s\n%s"):format(
 		night,
 		state:GetAttribute("LastNight") or 7,
 		string.upper(phase),
 		clock(left),
+		whereText,
 		state:GetAttribute("ObjectiveText") or ""
 	)
 

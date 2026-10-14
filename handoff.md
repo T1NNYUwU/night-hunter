@@ -17,6 +17,7 @@
 - เสร็จ (2026-10-08): **M4 (ส่วนโค้ด)** POMCP, opponent model, telemetry, backend (`backend/`), ชุดทดลองในตัวจำลอง — ผลอยู่ใน [docs/m4-research.md](docs/m4-research.md)
 - เสร็จ (2026-10-09): **ระบบที่ซ่อนใหม่** ตู้ประตูเปิดปิดได้ + โต๊ะผ้าคลุม, แอบมอง, กลั้นหายใจ, เสียงเข้าที่ซ่อนบอกตำแหน่ง, ปีศาจค้นเมื่อสงสัย — [docs/hiding.md](docs/hiding.md); ไฟล์ deploy Render: `render.yaml` + [docs/deploy.md](docs/deploy.md)
 - เสร็จ (2026-10-14): **rework แมพเป็นคฤหาสน์ 3 ชั้น** (17 ห้อง, โถงสูง 2 ชั้น บันได 2 ทาง, ใต้ดิน), คืน 7 = เก็บของ→วางที่เสากลาง→กุญแจ→ประตูหน้า, มืดลง, ไฟฉายสว่างขึ้นและไม่แกว่ง — [docs/mansion.md](docs/mansion.md)
+- เสร็จ (2026-10-15): **คฤหาสน์รอบ 2** กว้างขึ้นมาก (ห้อง 34–44 studs, ซุ้มโค้งเปิด, ตรงกลางห้องโล่งไว้วิ่งหนี), วอลเปเปอร์ดามัสก์ + ผนังไม้ + ร่องรอยหลอน + ม่าน/ไม้ตอกหน้าต่าง + ฝุ่น + หมอก, ของตกแต่งวิกตอเรียน (asset ตรวจแล้ว), HUD บอกชั้น/ห้อง — [docs/mansion.md](docs/mansion.md)
 - ยังไม่ทำ: deploy backend + เปิด HttpService + playtest กับคนจริง ([docs/playtest.md](docs/playtest.md))
 
 ## โครงสร้างไฟล์ (Rojo project: `default.project.json`)

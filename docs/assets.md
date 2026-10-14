@@ -62,3 +62,17 @@ HouseDecor จะใช้กล่องแทนให้อัตโนมั
 - เสียงคลิก: `rbxassetid://115959318` (มากับไฟฉายคลาสสิก)
 - เมชและเสียงเป็นของผู้สร้างอื่น ถ้าถูกลบ ไฟฉายจะมองไม่เห็น/เงียบ ต้องหาตัวแทน (เกมไม่พัง)
 - แอนิเมชัน dummy (`CF` 0.83 วิ: ชักไฟฉายจากข้างตัวมาหน้าลำตัว แล้วยกมือสูง, `Hf` 2 วิ: ค้างยกมือสูง) เป็นของ R6 ไม่ได้ใช้
+
+## ของตกแต่งวิกตอเรียน (2026-10-15): ตรวจแล้ว ใช้ได้
+ชุด "Roblox No-Blox Revolution" โดย **ValyziaFortens** (ผู้สร้างคนเดียวกันทั้งชุด สไตล์เข้ากัน) นำเข้าโฟลเดอร์กักกันก่อน ตรวจทุกชิ้น: **ไม่มีสคริปต์เลย** (มีแค่ MeshPart, Part, Decal, Texture, ParticleEmitter/PointLight ของเปลวเทียน)
+| asset id | ชิ้น | ใช้เป็น |
+|---|---|---|
+| 4871652182 | Victorian Wall Wallpaper | ใช้เฉพาะ **ลายเท็กซ์เจอร์ 6 ลาย** (4871615427, 4871616234, 4871637380, 4871614772, 4871614264, 4871613662) บนวอลเปเปอร์ทุกห้อง |
+| 4871246790 | Victorian Frame Painting | `AssetLibrary.Decor_Frame` (รูปแขวน) |
+| 4871337268 | Victorian Wall Mirror | `Decor_Mirror` |
+| 4871293389 | Victorian Antler Plaque | `Decor_Antlers` |
+| 4797665994 | Victorian Candlesticks | `Decor_Candlesticks` |
+| 4798097924 | Victorian Statuette | `Decor_Statuette` |
+| 4883328544, 4883315392 | Victorian Sofa / Big Sofa | **ไม่ใช้**: ชิ้นยาว ~24–27 studs และมี Decal/Texture 400–700 ชิ้นต่อโซฟา หนักเกินไป |
+- ทุกชิ้นปรับเป็นมาตรฐาน AssetLibrary: Anchored, ไม่ชน, pivot (ของแขวน: กลางชิ้น หน้าไปทาง −Z; ของตั้ง: กลางฐาน), Attribute `Size`, `AssetId`, `Creator`, `Audit`
+- ไม่ได้เปิด HttpService หรือสิทธิ์อะไรเพิ่มเพราะ asset เหล่านี้
