@@ -3,6 +3,8 @@
 *.rbxlx
 *.rbxm
 *.rbxmx
+# ...except the exported map (see docs/map-workflow.md)
+!map/*.rbxmx
 *.lock
 sourcemap.json
 # OS / editor

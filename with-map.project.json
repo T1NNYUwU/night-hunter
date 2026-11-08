@@ -1,0 +1,52 @@
+{
+  "name": "night-hunter-with-map",
+  "tree": {
+    "$className": "DataModel",
+    "ReplicatedStorage": {
+      "$className": "ReplicatedStorage",
+      "$ignoreUnknownInstances": true,
+      "NightHunter": {
+        "$path": "src/shared"
+      }
+    },
+    "ServerScriptService": {
+      "$className": "ServerScriptService",
+      "$ignoreUnknownInstances": true,
+      "NightHunter": {
+        "$path": "src/server"
+      }
+    },
+    "StarterPlayer": {
+      "$className": "StarterPlayer",
+      "$ignoreUnknownInstances": true,
+      "StarterPlayerScripts": {
+        "$className": "StarterPlayerScripts",
+        "$ignoreUnknownInstances": true,
+        "NightHunter": {
+          "$path": "src/client"
+        }
+      }
+    },
+    "Workspace": {
+      "$className": "Workspace",
+      "$ignoreUnknownInstances": true,
+      "NightHunterHouse": {
+        "$className": "Folder",
+        "$ignoreUnknownInstances": true,
+        "$attributes": {
+          "Layout": 5
+        },
+        "Furniture": {
+          "$path": "map/Furniture.rbxmx"
+        }
+      }
+    },
+    "ServerStorage": {
+      "$className": "ServerStorage",
+      "$ignoreUnknownInstances": true,
+      "AssetLibrary": {
+        "$path": "map/AssetLibrary.rbxmx"
+      }
+    }
+  }
+}
