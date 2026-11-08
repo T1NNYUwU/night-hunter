@@ -10,3 +10,5 @@ sourcemap.json
 Thumbs.db
 .vscode/
 !backend/uv.lock
+
+.env
