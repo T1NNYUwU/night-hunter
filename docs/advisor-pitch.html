@@ -1,0 +1,243 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>7 Nights Hunter: เสนอหัวข้อ</title>
+<style>
+:root {
+  --bg: #f7f5f2; --card: #ffffff; --ink: #1d1b19; --muted: #6b655e; --line: #e4dfd8;
+  --accent: #8e2b2b; --accent-soft: #f3e3e1; --warm: #b7792f; --cool: #3b5a80; --ok: #2f6b45; --warn: #9a6b12;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #141312; --card: #1d1b1a; --ink: #ece7e1; --muted: #a39b92; --line: #34302c;
+    --accent: #d06a6a; --accent-soft: #3a2424; --warm: #d9a05a; --cool: #7fa4d1; --ok: #6fb58a; --warn: #d6aa52;
+  }
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 16px/1.65 "Sarabun", "Leelawadee UI", "Tahoma", system-ui, sans-serif; }
+main { max-width: 980px; margin: 0 auto; padding: 32px 16px 64px; }
+h1 { font-size: 2rem; margin: 0 0 4px; letter-spacing: -0.01em; }
+h2 { font-size: 1.3rem; margin: 44px 0 12px; padding-bottom: 6px; border-bottom: 2px solid var(--line); }
+h3 { font-size: 1.05rem; margin: 20px 0 8px; }
+p { margin: 8px 0; }
+.sub { color: var(--muted); margin: 0 0 20px; }
+.hero { background: var(--card); border: 1px solid var(--line); border-left: 5px solid var(--accent); border-radius: 10px; padding: 20px 22px; }
+.hero p { font-size: 1.08rem; }
+.tag { display: inline-block; font-size: .78rem; padding: 2px 9px; border-radius: 99px; background: var(--accent-soft); color: var(--accent); font-weight: 600; margin-right: 6px; }
+.grid { display: grid; gap: 14px; }
+.g2 { grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); }
+.g3 { grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); }
+.card { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 16px 18px; }
+.card h3 { margin-top: 0; }
+.card.pick { border: 2px solid var(--accent); }
+.card .label { font-size: .8rem; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
+.rq { display: flex; gap: 12px; align-items: flex-start; }
+.rq b { flex: none; background: var(--accent); color: #fff; border-radius: 6px; padding: 1px 8px; font-size: .85rem; margin-top: 3px; }
+table { width: 100%; border-collapse: collapse; background: var(--card); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; font-size: .95rem; }
+th, td { text-align: left; padding: 9px 12px; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { background: var(--accent-soft); font-weight: 600; }
+tr:last-child td { border-bottom: none; }
+.wrap { overflow-x: auto; }
+.status { font-size: .8rem; font-weight: 600; padding: 1px 8px; border-radius: 99px; white-space: nowrap; }
+.s-ok { background: color-mix(in srgb, var(--ok) 18%, transparent); color: var(--ok); }
+.note { background: color-mix(in srgb, var(--warn) 14%, var(--card)); border: 1px solid color-mix(in srgb, var(--warn) 40%, var(--line)); border-radius: 10px; padding: 12px 16px; margin: 14px 0; }
+.note b { color: var(--warn); }
+/* AI layers */
+.layers { display: grid; gap: 8px; }
+.layer { display: grid; grid-template-columns: 150px 1fr; gap: 12px; align-items: center; background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; }
+.layer .name { font-weight: 700; }
+.layer.l1 { border-left: 5px solid var(--cool); }
+.layer.l2 { border-left: 5px solid var(--warm); }
+.layer.l3 { border-left: 5px solid var(--accent); }
+.arrow { text-align: center; color: var(--muted); font-size: .9rem; }
+/* bars */
+.bars { display: grid; gap: 18px; }
+.bargroup h3 { margin: 0 0 6px; font-size: .95rem; }
+.bar { display: grid; grid-template-columns: 110px 1fr 54px; gap: 10px; align-items: center; font-size: .88rem; margin: 3px 0; }
+.track { background: var(--line); border-radius: 4px; height: 14px; overflow: hidden; }
+.fill { height: 100%; border-radius: 4px; }
+.c-rule { background: #9a948c; } .c-belief { background: var(--cool); } .c-pomcp { background: var(--warm); } .c-model { background: var(--accent); }
+.legend { display: flex; flex-wrap: wrap; gap: 14px; font-size: .85rem; color: var(--muted); margin-top: 6px; }
+.legend span::before { content: ""; display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 6px; vertical-align: middle; background: var(--c); }
+/* depth ladder */
+.ladder { display: grid; gap: 10px; }
+.step { display: grid; grid-template-columns: 90px 1fr; gap: 14px; background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; }
+.step .lv { font-weight: 700; font-size: 1.05rem; }
+.step.rec { border: 2px solid var(--accent); }
+.step small { color: var(--muted); display: block; margin-top: 4px; }
+/* timeline */
+.timeline { display: grid; grid-template-columns: repeat(16, 1fr); gap: 3px; margin: 8px 0 4px; }
+.timeline div { height: 26px; border-radius: 4px; }
+.t1 { background: #9a948c; } .t2 { background: var(--cool); } .t3 { background: var(--warm); } .t4 { background: var(--accent); } .t5 { background: var(--ok); } .t6 { background: #6b655e; }
+.weeks { display: grid; grid-template-columns: repeat(16, 1fr); gap: 3px; font-size: .7rem; color: var(--muted); text-align: center; }
+ol.q { padding-left: 20px; }
+ol.q li { margin: 6px 0; }
+footer { margin-top: 48px; color: var(--muted); font-size: .85rem; }
+@media (max-width: 600px) {
+  h1 { font-size: 1.55rem; }
+  .layer { grid-template-columns: 1fr; gap: 4px; }
+  .bar { grid-template-columns: 84px 1fr 46px; }
+  .step { grid-template-columns: 1fr; gap: 4px; }
+  .timeline, .weeks { gap: 1px; }
+}
+@media print { body { background: #fff; } h2 { break-after: avoid; } .card, .step, table { break-inside: avoid; } }
+</style>
+</head>
+<body>
+<main>
+
+<h1>7 Nights Hunter</h1>
+<p class="sub">เสนอหัวข้อโครงงานจบ ป.ตรี วิทยาการคอมพิวเตอร์ · ทีม 3 คน · ประมาณ 1 ภาคเรียน · 17 พ.ย. 2026</p>
+
+<div class="hero">
+  <p><span class="tag">ในย่อหน้าเดียว</span></p>
+  <p>เราสร้าง <b>ปีศาจ AI ที่ตาบอดและล่าผู้เล่นด้วยเสียงอย่างเดียว</b> ในเกม co-op สยองขวัญบน Roblox
+  ปีศาจไม่เคยรู้ตำแหน่งจริงของผู้เล่น ต้องอนุมานจากเสียง นี่คือปัญหา <b>การตัดสินใจภายใต้ข้อมูลไม่ครบ</b> (partially observable)</p>
+  <p>โครงงานจะ <b>เปรียบเทียบสมอง AI 4 แบบ</b> ตั้งแต่กฎง่าย ๆ จนถึงการวางแผนแบบ POMCP ที่เรียนรู้พฤติกรรมผู้เล่นจากข้อมูล
+  วัดผล <b>ทั้งในตัวจำลองและกับผู้เล่นจริง</b> ผ่านระบบเก็บข้อมูลที่ทำงานอยู่แล้ว</p>
+  <p style="color:var(--muted)">กลุ่มอื่นเทียบโมเดลบนชุดข้อมูล งานนี้ก็เทียบโมเดลเหมือนกัน แต่ทดสอบในระบบที่คนเล่นได้จริง
+  และถามคำถามเพิ่มว่า "ผลจากตัวจำลองตรงกับผลจากมนุษย์แค่ไหน"</p>
+</div>
+
+<h2>1. คำถามวิจัย</h2>
+<div class="grid g2">
+  <div class="card rq"><b>RQ1</b><div>การติดตามด้วยความน่าจะเป็น (belief) และการวางแผน (POMCP) จับผู้เล่นได้ดีกว่ากฎธรรมดาแค่ไหน</div></div>
+  <div class="card rq"><b>RQ2</b><div>โมเดลพฤติกรรมผู้เล่นที่เรียนรู้จากข้อมูล (opponent model) ช่วยเพิ่มอีกเท่าไร</div></div>
+  <div class="card rq"><b>RQ3</b><div>ผลจากบอทในตัวจำลอง <b>ต่างจากผลกับคนจริงเท่าไร</b> (sim-to-real gap)</div></div>
+  <div class="card rq"><b>RQ4</b><div>(ถ้ามีเวลา) ปีศาจที่ฉลาดขึ้นทำให้กลัวขึ้น โดยไม่รู้สึกว่า "โกง" หรือไม่</div></div>
+</div>
+
+<h2>2. ปีศาจคิดอย่างไร</h2>
+<p>ศัตรูในเกมส่วนใหญ่รู้ตำแหน่งผู้เล่นตลอดแล้วแกล้งทำเป็นไม่รู้ ปีศาจของเราไม่รู้จริง ทุก 0.5 วินาทีมันคิดเป็น 3 ชั้น:</p>
+<div class="layers">
+  <div class="layer l1"><div class="name">1. รับรู้ (belief)</div><div>Particle filter 300 ตัวต่อผู้เล่น อัปเดตจาก "ได้ยินเสียงที่ห้องนี้" / "ฟังแล้วเงียบ" / "เปิดตู้แล้วว่าง" ได้แผนที่ว่าผู้เล่นน่าจะอยู่ห้องไหนกี่ %</div></div>
+  <div class="arrow">▼</div>
+  <div class="layer l2"><div class="name">2. ตัดสินใจ</div><div><b>rule</b> ไปที่เสียงล่าสุด · <b>belief</b> ไปห้องที่น่าจะมีคนมากสุดเทียบกับระยะทาง · <b>pomcp</b> จำลองอนาคตหลายร้อยแบบ (Monte Carlo tree search) แล้วเลือกทางที่จับได้เร็วที่สุด</div></div>
+  <div class="arrow">▼</div>
+  <div class="layer l3"><div class="name">3. รู้จักผู้เล่น</div><div><b>Opponent model</b> ทำนายว่าผู้เล่นจะหนี ซ่อน หรืออยู่นิ่ง เมื่อปีศาจอยู่ใกล้แค่ไหน เรียนรู้จากข้อมูลการเล่นจริง</div></div>
+</div>
+
+<h2>3. สิ่งที่มีอยู่แล้ว</h2>
+<div class="wrap"><table>
+  <tr><th>ส่วน</th><th>สถานะ</th><th>รายละเอียด</th></tr>
+  <tr><td>เกม co-op 7 คืน บน Roblox</td><td><span class="status s-ok">เล่นได้</span></td><td>คฤหาสน์ 3 ชั้น 25 ห้อง, ซ่อนในตู้, ภารกิจ, ไฟฉาย, ร้านค้า</td></tr>
+  <tr><td>กราฟของบ้าน</td><td><span class="status s-ok">ใช้งานอยู่</span></td><td>52 node (25 ห้อง + 27 ที่ซ่อน) ใช้ร่วมกันทั้งเกม ตัวจำลอง และ backend</td></tr>
+  <tr><td>สมองปีศาจ 3 แบบ + opponent model</td><td><span class="status s-ok">ใช้งานอยู่</span></td><td>rule / belief / pomcp ใช้ประสาทสัมผัสชุดเดียวกัน เทียบกันได้ยุติธรรม</td></tr>
+  <tr><td>ตัวจำลอง (headless)</td><td><span class="status s-ok">ใช้งานอยู่</span></td><td>บอท 4 สไตล์ เล่นหลายร้อยคืนในไม่กี่วินาที ใช้โค้ดสมองตัวเดียวกับเกม</td></tr>
+  <tr><td>Telemetry + backend</td><td><span class="status s-ok">deploy แล้ว</span></td><td>FastAPI + PostgreSQL: รับข้อมูลทุกคืน, ฝึกโมเดล train/holdout, dashboard สถิติ, 23 tests</td></tr>
+  <tr><td>โหมดทดลอง A/B</td><td><span class="status s-ok">มีแล้ว</span></td><td>สุ่มสมองให้ผู้เล่นโดยผู้เล่นไม่รู้ (blind)</td></tr>
+</table></div>
+<p style="color:var(--muted);font-size:.9rem">โค้ดประมาณ 11,000 บรรทัด Luau และ 740 บรรทัด Python</p>
+
+<h2>4. ผลเบื้องต้นจากตัวจำลอง</h2>
+<div class="note"><b>ใช้อ้างอิงได้แค่บางส่วน</b> · ทดลองบนบ้านรุ่นเก่า 16 ห้อง (ตอนนี้ 25 ห้อง 3 ชั้น) · ใช้บอทพฤติกรรมตายตัว · ค่าความยากถูกปรับหลายรอบหลังจากนั้น
+<br>ต้องรันใหม่บนบ้านปัจจุบันก่อนใส่ในเล่ม สิ่งที่เชื่อได้คือ <b>ทิศทาง</b> ไม่ใช่ตัวเลข</div>
+
+<div class="card bars">
+  <div class="bargroup"><h3>บอทซ่อนตู้ · % ที่ถูกจับ</h3>
+    <div class="bar"><span>rule</span><div class="track"><div class="fill c-rule" style="width:34.5%"></div></div><span>34.5%</span></div>
+    <div class="bar"><span>belief</span><div class="track"><div class="fill c-belief" style="width:50.5%"></div></div><span>50.5%</span></div>
+    <div class="bar"><span>pomcp</span><div class="track"><div class="fill c-pomcp" style="width:81.5%"></div></div><span>81.5%</span></div>
+    <div class="bar"><span>pomcp+model</span><div class="track"><div class="fill c-model" style="width:96%"></div></div><span>96.0%</span></div>
+  </div>
+  <div class="bargroup"><h3>บอทซ่อน + ปาของล่อ</h3>
+    <div class="bar"><span>rule</span><div class="track"><div class="fill c-rule" style="width:41.5%"></div></div><span>41.5%</span></div>
+    <div class="bar"><span>belief</span><div class="track"><div class="fill c-belief" style="width:47.5%"></div></div><span>47.5%</span></div>
+    <div class="bar"><span>pomcp</span><div class="track"><div class="fill c-pomcp" style="width:73.5%"></div></div><span>73.5%</span></div>
+    <div class="bar"><span>pomcp+model</span><div class="track"><div class="fill c-model" style="width:89%"></div></div><span>89.0%</span></div>
+  </div>
+  <div class="bargroup"><h3>บอทเก็บของ (เสียงดัง วิ่งตลอด)</h3>
+    <div class="bar"><span>rule</span><div class="track"><div class="fill c-rule" style="width:9.5%"></div></div><span>9.5%</span></div>
+    <div class="bar"><span>belief</span><div class="track"><div class="fill c-belief" style="width:5.5%"></div></div><span>5.5%</span></div>
+    <div class="bar"><span>pomcp</span><div class="track"><div class="fill c-pomcp" style="width:12.5%"></div></div><span>12.5%</span></div>
+    <div class="bar"><span>pomcp+model</span><div class="track"><div class="fill c-model" style="width:31.5%"></div></div><span>31.5%</span></div>
+  </div>
+  <p style="color:var(--muted);font-size:.85rem;margin:0">100 คืนต่อแถว · seed เดียวกันทุกสมอง (ความต่างมาจากสมอง ไม่ใช่ดวง)</p>
+</div>
+
+<h3>ทิศทางที่น่าสนใจ</h3>
+<ul>
+  <li>การวางแผน (POMCP) ชนะการติดตามอย่างเดียวชัดเจน</li>
+  <li><b>Opponent model ให้ผลมากกว่าการวางแผน</b> และเมื่อโมเดลแม่นพอ การวางแผนช่วยน้อยลง</li>
+  <li>Opponent model ทำนายผู้เล่นสไตล์ที่ไม่เคยเห็นได้ 3 ใน 4 แบบ แต่ล้มเหลวกับผู้เล่นที่เดินมั่ว</li>
+  <li>ข้อมูลคนจริงตอนนี้ (27 คืน ผู้พัฒนาเล่นคนเดียว) ใช้เป็นหลักฐานไม่ได้ แต่บอกว่า <b>บอทชนะคืนแรก 97% ส่วนคนชนะ 4%</b> ตัวอย่างจริงของ sim-to-real gap (RQ3)</li>
+</ul>
+
+<h2>5. เส้นทางที่เลือกได้</h2>
+<div class="grid g3">
+  <div class="card pick"><div class="label">ทางที่ 1 · แนะนำเป็นแกน</div><h3>วิจัย AI ของเกม</h3>
+    <p>เทียบสมอง AI ภายใต้ข้อมูลไม่ครบ</p><p><b>วัด:</b> อัตราจับต่อคืน, เวลารอด</p><p><b>ใกล้กลุ่มอื่น:</b> เทียบโมเดลแบบเดียวกัน</p><p><b>เสี่ยง:</b> ต่ำ โค้ดพร้อม</p></div>
+  <div class="card"><div class="label">ทางที่ 2 · เป็นเครื่องมือ</div><h3>ระบบข้อมูล / ML</h3>
+    <p>pipeline เก็บข้อมูล → ฝึก → ส่งโมเดลกลับเกม</p><p><b>วัด:</b> log-likelihood บน holdout, ความแม่นการทำนาย</p><p><b>เสี่ยง:</b> กลาง ต้องมีข้อมูลคนพอ</p></div>
+  <div class="card"><div class="label">ทางที่ 3 · ส่วนเสริม</div><h3>ประสบการณ์ผู้เล่น</h3>
+    <p>ความกลัว ความยุติธรรม ความสนุก</p><p><b>วัด:</b> แบบสอบถาม Likert, อัตราเล่นต่อ</p><p><b>เสี่ยง:</b> สูง ต้องคนเยอะ วัดยาก</p></div>
+</div>
+
+<h2>6. ระดับความลึก</h2>
+<div class="ladder">
+  <div class="step"><div class="lv">ตื้น</div><div>รันการทดลองใหม่ในตัวจำลองบนบ้านปัจจุบัน เพิ่ม baseline (สุ่มเดิน / รู้ตำแหน่งจริง) ใช้สถิติแบบ paired
+    <small>ได้: ผลเทียบโมเดลที่ทำซ้ำได้ ครบในตัว</small></div></div>
+  <div class="step rec"><div class="lv">กลาง<br><span class="tag">แนะนำ</span></div><div>ตื้น + playtest กับคนจริง ~30 คน แบบ blind + วัด sim-to-real gap
+    <small>ได้: ตอบ RQ1–RQ3 ด้วยข้อมูลคน</small></div></div>
+  <div class="step"><div class="lv">ลึก</div><div>กลาง + <b>วิธีใหม่ของเรา 1 อย่าง</b>: ให้ POMCP จำลองเสียง (ปีศาจ "หยุดฟัง" เพื่อหาข้อมูล) · opponent model ที่ปรับตัวต่อผู้เล่นระหว่างเล่น · หรือฝึกบอทให้เลียนแบบคนจริงเพื่อลด sim-to-real gap
+    <small>ได้: มีส่วนที่เป็นงานใหม่ เขียนเป็นเปเปอร์ได้</small></div></div>
+</div>
+
+<h2>7. แผน 16 สัปดาห์ (ระดับกลาง)</h2>
+<div class="timeline">
+  <div class="t1"></div><div class="t1"></div>
+  <div class="t2"></div><div class="t2"></div><div class="t2"></div>
+  <div class="t3"></div><div class="t3"></div>
+  <div class="t4"></div><div class="t4"></div><div class="t4"></div><div class="t4"></div>
+  <div class="t5"></div><div class="t5"></div>
+  <div class="t6"></div><div class="t6"></div><div class="t6"></div>
+</div>
+<div class="weeks"><span>1</span><span>2</span><span>3</span><span>4</span><span>5</span><span>6</span><span>7</span><span>8</span><span>9</span><span>10</span><span>11</span><span>12</span><span>13</span><span>14</span><span>15</span><span>16</span></div>
+<div class="legend">
+  <span style="--c:#9a948c">1–2 ล็อกบ้าน/ความยาก, ส่งข้อเสนอ</span>
+  <span style="--c:var(--cool)">3–5 รันตัวจำลองใหม่ + baseline + สถิติ</span>
+  <span style="--c:var(--warm)">6–7 จริยธรรม, pilot 5 คน</span>
+  <span style="--c:var(--accent)">8–11 playtest ~30 คน</span>
+  <span style="--c:var(--ok)">12–13 ฝึกโมเดล, วิเคราะห์</span>
+  <span style="--c:#6b655e">14–16 เล่ม, สไลด์, สอบ</span>
+</div>
+
+<h2>8. แบ่งงาน 3 คน</h2>
+<div class="grid g3">
+  <div class="card"><div class="label">คนที่ 1</div><h3>AI ปีศาจ</h3><p>ตัวจำลอง, baseline, (ลึก) POMCP ที่จำลองเสียง</p><p><b>ผลงาน:</b> ตารางเทียบสมอง, เวลาคำนวณ</p></div>
+  <div class="card"><div class="label">คนที่ 2</div><h3>ข้อมูลและสถิติ</h3><p>backend, ฝึกโมเดล, paired stats, mixed-effects</p><p><b>ผลงาน:</b> ผล opponent model, sim-to-real gap</p></div>
+  <div class="card"><div class="label">คนที่ 3</div><h3>เกมและผู้ใช้</h3><p>ความยาก, ด่าน, ออกแบบและจัด playtest, แบบสอบถาม</p><p><b>ผลงาน:</b> ข้อมูลคน, ผลด้านประสบการณ์</p></div>
+</div>
+
+<h2>9. ความเสี่ยง</h2>
+<div class="wrap"><table>
+  <tr><th>ความเสี่ยง</th><th>รับมือ</th></tr>
+  <tr><td>หาคนเล่นไม่พอ</td><td>ลดเป้าเป็น 12–15 คนเล่นหลายรอบ, รายงานช่วงความเชื่อมั่นแทน p-value</td></tr>
+  <tr><td>ผู้เล่น Roblox มีเด็ก</td><td>playtest ปิด เชิญเฉพาะคนอายุ 18+, ไม่เก็บชื่อหรือ user id (ระบบทำไว้แล้ว)</td></tr>
+  <tr><td>Roblox เปลี่ยน API / บริการ</td><td>backend แยกจากเกม, ตัวจำลองรันได้โดยไม่ต้องใช้ Roblox</td></tr>
+  <tr><td>งานกราฟิกกินเวลา</td><td>ล็อกกราฟิกตั้งแต่สัปดาห์ 2 งานที่เหลือเป็นงาน AI และข้อมูล</td></tr>
+</table></div>
+
+<h2>10. คำถามถึงอาจารย์</h2>
+<ol class="q">
+  <li>หัวข้อแนวนี้ (game AI + การทดลองกับคน) นับเป็นงานวิจัยพอสำหรับโครงงานจบไหม</li>
+  <li>อาจารย์อยากให้ลึกระดับไหน ต้องมีส่วนที่เป็นวิธีใหม่ (ระดับลึก) หรือไม่</li>
+  <li>งานที่ทำไปแล้วก่อนเทอม นับเป็นส่วนหนึ่งของโครงงานได้แค่ไหน และภาคมีกฎเรื่องใช้ AI ช่วยเขียนโค้ดอย่างไร</li>
+  <li>การทดลองกับคน ต้องผ่านคณะกรรมการจริยธรรมของมหาวิทยาลัยหรือไม่</li>
+  <li>ภาคใช้โครงสร้างโครงงาน 1 + 2 (สองเทอม) หรือจบในเทอมเดียว</li>
+</ol>
+
+<h2>อ้างอิงหลัก</h2>
+<ul style="font-size:.92rem">
+  <li>D. Silver, J. Veness, "Monte-Carlo Planning in Large POMDPs," NeurIPS 2010 (POMCP)</li>
+  <li>S. Thrun, W. Burgard, D. Fox, <i>Probabilistic Robotics</i>, MIT Press, 2005 (particle filter)</li>
+  <li>S. V. Albrecht, P. Stone, "Autonomous agents modelling other agents: A comprehensive survey and open problems," <i>Artificial Intelligence</i>, 2018</li>
+  <li>G. N. Yannakakis, J. Togelius, <i>Artificial Intelligence and Games</i>, Springer, 2018</li>
+</ul>
+
+<footer>ฉบับ Markdown: advisor-pitch.md · ผลเบื้องต้นละเอียด: m4-research.md</footer>
+</main>
+</body>
+</html>
