@@ -15,6 +15,10 @@
     --accent: #d06a6a; --accent-soft: #3a2424; --warm: #d9a05a; --cool: #7fa4d1; --ok: #6fb58a; --warn: #d6aa52;
   }
 }
+:root[data-theme="dark"] {
+  --bg: #141312; --card: #1d1b1a; --ink: #ece7e1; --muted: #a39b92; --line: #34302c;
+  --accent: #d06a6a; --accent-soft: #3a2424; --warm: #d9a05a; --cool: #7fa4d1; --ok: #6fb58a; --warn: #d6aa52;
+}
 * { box-sizing: border-box; }
 body { margin: 0; background: var(--bg); color: var(--ink); font: 16px/1.65 "Sarabun", "Leelawadee UI", "Tahoma", system-ui, sans-serif; }
 main { max-width: 980px; margin: 0 auto; padding: 32px 16px 64px; }
@@ -44,14 +48,25 @@ tr:last-child td { border-bottom: none; }
 .s-ok { background: color-mix(in srgb, var(--ok) 18%, transparent); color: var(--ok); }
 .note { background: color-mix(in srgb, var(--warn) 14%, var(--card)); border: 1px solid color-mix(in srgb, var(--warn) 40%, var(--line)); border-radius: 10px; padding: 12px 16px; margin: 14px 0; }
 .note b { color: var(--warn); }
-/* AI layers */
-.layers { display: grid; gap: 8px; }
-.layer { display: grid; grid-template-columns: 150px 1fr; gap: 12px; align-items: center; background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; }
-.layer .name { font-weight: 700; }
-.layer.l1 { border-left: 5px solid var(--cool); }
-.layer.l2 { border-left: 5px solid var(--warm); }
-.layer.l3 { border-left: 5px solid var(--accent); }
-.arrow { text-align: center; color: var(--muted); font-size: .9rem; }
+/* brains */
+.senses { background: var(--card); border: 1px dashed var(--line); border-radius: 10px; padding: 14px 16px; margin: 12px 0 16px; }
+.senses .label { font-size: .8rem; color: var(--muted); }
+.chips { display: flex; flex-wrap: wrap; gap: 8px; margin: 8px 0; }
+.chips span { background: var(--bg); border: 1px solid var(--line); border-radius: 99px; padding: 3px 12px; font-size: .92rem; }
+.brains { display: grid; gap: 14px; grid-template-columns: repeat(2, 1fr); }
+@media (max-width: 700px) { .brains { grid-template-columns: 1fr; } }
+.brain { background: var(--card); border: 1px solid var(--line); border-top: 5px solid var(--c); border-radius: 10px; padding: 14px 16px; }
+.brain.b1 { --c: #9a948c; } .brain.b2 { --c: var(--cool); } .brain.b3 { --c: var(--warm); } .brain.b4 { --c: var(--accent); }
+.bh { display: flex; gap: 12px; align-items: center; margin-bottom: 6px; }
+.bh h3 { margin: 0; }
+.num { flex: none; width: 32px; height: 32px; border-radius: 50%; background: var(--c); color: #fff; display: grid; place-items: center; font-weight: 700; }
+.one { color: var(--muted); font-style: italic; }
+.ex { background: color-mix(in srgb, var(--c) 12%, var(--card)); border-radius: 8px; padding: 8px 12px; margin: 8px 0; font-size: .94rem; }
+.weak { font-size: .9rem; color: var(--muted); }
+.cmp td.yes { color: var(--ok); font-weight: 600; } .cmp td.no { color: var(--muted); }
+.gloss { margin: 16px 0; background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 10px 16px; }
+.gloss summary { cursor: pointer; font-weight: 600; }
+.gloss dt { font-weight: 600; margin-top: 8px; } .gloss dd { margin: 0 0 0 0; color: var(--muted); }
 /* bars */
 .bars { display: grid; gap: 18px; }
 .bargroup h3 { margin: 0 0 6px; font-size: .95rem; }
@@ -77,7 +92,6 @@ ol.q li { margin: 6px 0; }
 footer { margin-top: 48px; color: var(--muted); font-size: .85rem; }
 @media (max-width: 600px) {
   h1 { font-size: 1.55rem; }
-  .layer { grid-template-columns: 1fr; gap: 4px; }
   .bar { grid-template-columns: 84px 1fr 46px; }
   .step { grid-template-columns: 1fr; gap: 4px; }
   .timeline, .weeks { gap: 1px; }
@@ -109,15 +123,69 @@ footer { margin-top: 48px; color: var(--muted); font-size: .85rem; }
   <div class="card rq"><b>RQ4</b><div>(ถ้ามีเวลา) ปีศาจที่ฉลาดขึ้นทำให้กลัวขึ้น โดยไม่รู้สึกว่า "โกง" หรือไม่</div></div>
 </div>
 
-<h2>2. ปีศาจคิดอย่างไร</h2>
-<p>ศัตรูในเกมส่วนใหญ่รู้ตำแหน่งผู้เล่นตลอดแล้วแกล้งทำเป็นไม่รู้ ปีศาจของเราไม่รู้จริง ทุก 0.5 วินาทีมันคิดเป็น 3 ชั้น:</p>
-<div class="layers">
-  <div class="layer l1"><div class="name">1. รับรู้ (belief)</div><div>Particle filter 300 ตัวต่อผู้เล่น อัปเดตจาก "ได้ยินเสียงที่ห้องนี้" / "ฟังแล้วเงียบ" / "เปิดตู้แล้วว่าง" ได้แผนที่ว่าผู้เล่นน่าจะอยู่ห้องไหนกี่ %</div></div>
-  <div class="arrow">▼</div>
-  <div class="layer l2"><div class="name">2. ตัดสินใจ</div><div><b>rule</b> ไปที่เสียงล่าสุด · <b>belief</b> ไปห้องที่น่าจะมีคนมากสุดเทียบกับระยะทาง · <b>pomcp</b> จำลองอนาคตหลายร้อยแบบ (Monte Carlo tree search) แล้วเลือกทางที่จับได้เร็วที่สุด</div></div>
-  <div class="arrow">▼</div>
-  <div class="layer l3"><div class="name">3. รู้จักผู้เล่น</div><div><b>Opponent model</b> ทำนายว่าผู้เล่นจะหนี ซ่อน หรืออยู่นิ่ง เมื่อปีศาจอยู่ใกล้แค่ไหน เรียนรู้จากข้อมูลการเล่นจริง</div></div>
+<h2>2. สมองปีศาจ 4 แบบ คืออะไร</h2>
+<p>ศัตรูในเกมส่วนใหญ่รู้ตำแหน่งผู้เล่นตลอดแล้วแกล้งทำเป็นไม่รู้ ปีศาจของเราไม่รู้จริง</p>
+<div class="senses">
+  <div class="label">สิ่งที่ปีศาจรู้ (เหมือนกันทั้ง 4 แบบ)</div>
+  <div class="chips"><span>🔊 ได้ยินเสียงจากห้องไหน</span><span>🤫 ห้องที่ฟังแล้วเงียบ</span><span>🚪 ตู้ที่เปิดแล้วว่าง</span></div>
+  <p>ทุก 0.5 วินาที แต่ละแบบตอบคำถามเดียวกัน: <b>"จะเดินไปห้องไหนต่อ"</b> ต่างกันแค่วิธีคิด
+  แต่ละขั้นเพิ่มความสามารถทีละอย่าง จึงวัดได้ว่าแต่ละส่วนช่วยเท่าไร</p>
 </div>
+
+<div class="brains">
+  <div class="brain b1">
+    <div class="bh"><span class="num">1</span><div><h3>Rule-based</h3><div class="one">"ได้ยินที่ไหน ไปที่นั่น"</div></div></div>
+    <p>กฎตายตัว: ไปที่เสียงล่าสุด ไม่ได้ยินอะไรก็สุ่มเดินตรวจห้อง เป็นตัวเทียบพื้นฐาน (baseline)</p>
+    <div class="ex"><b>ในเกม:</b> ผู้เล่นทำของตกใน Ballroom ปีศาจตรงไป Ballroom ผู้เล่นย่องไป Conservatory
+      ปีศาจถึงห้องเปล่า แล้วได้แต่สุ่มเดิน</div>
+    <div class="weak"><b>จุดอ่อน:</b> ไม่มีความจำ ปาของล่อครั้งเดียวก็หลอกได้</div>
+  </div>
+  <div class="brain b2">
+    <div class="bh"><span class="num">2</span><div><h3>Belief</h3><div class="one">"เดาว่าตอนนี้ผู้เล่นน่าจะอยู่ไหน"</div></div></div>
+    <p><b>Particle filter:</b> จุดเดา 300 จุดต่อผู้เล่น จุดเดาขยับไปตามทางเดินทุก tick
+      ได้ยินเสียง จุดเดาไปรวมตรงนั้น · ฟังแล้วเงียบ จุดเดาลดลง · ตู้ว่าง จุดเดาหายไป
+      แล้วเดินไปห้องที่ <i>โอกาสเจอ ÷ ระยะทาง</i> สูงสุด</p>
+    <div class="ex"><b>ในเกม:</b> เสียงล่าสุดมาจาก Ballroom เมื่อ 20 วินาทีก่อน ปีศาจคิดว่าผู้เล่นเดินต่อไปแล้ว
+      จึงไปดักห้องติดกันหรือตู้ใกล้ ๆ ไม่ไปยืนที่จุดเกิดเสียง</div>
+    <div class="weak"><b>จุดอ่อน:</b> ดูแค่ปัจจุบัน ไม่คิดว่าผู้เล่นจะหนีเมื่อเห็นปีศาจเดินมา</div>
+  </div>
+  <div class="brain b3">
+    <div class="bh"><span class="num">3</span><div><h3>POMCP</h3><div class="one">"ลองนึกอนาคตก่อนเดิน"</div></div></div>
+    <p>จุดเดาชุดเดิม + <b>Monte Carlo tree search</b>: จำลอง 200 รอบ (ไม่เกิน 4 ms) มองไกล 30 วินาที
+      แต่ละรอบสุ่มตำแหน่งผู้เล่นจากจุดเดา ลองเดินทาง A / B / C แล้วดูว่าผู้เล่นจะขยับอย่างไร เลือกทางที่จับได้เร็วสุด</p>
+    <div class="ex"><b>ในเกม:</b> ผู้เล่นอยู่ห้องใดห้องหนึ่งในสองห้องติดกัน ถ้าเข้าประตูหน้าผู้เล่นจะหนีประตูหลัง
+      POMCP จึงอ้อมไปปิดทางหนี หรือยืนที่โถงที่ทั้งสองห้องต้องผ่าน</div>
+    <div class="weak"><b>จุดอ่อน:</b> ไม่รู้นิสัยคน สมมติว่าผู้เล่นเดินสุ่ม</div>
+  </div>
+  <div class="brain b4">
+    <div class="bh"><span class="num">4</span><div><h3>POMCP + opponent model</h3><div class="one">"วางแผนแบบรู้นิสัยผู้เล่น"</div></div></div>
+    <p>POMCP ตัวเดิม แต่ใช้ <b>สถิติที่เรียนจากข้อมูลการเล่นจริง</b> แทน "เดินสุ่ม":
+      ในแต่ละสถานการณ์ (อยู่ในห้อง/ในที่ซ่อน × ปีศาจใกล้/ไกล) ผู้เล่นมักจะ อยู่นิ่ง / เข้าหา / หนี / เข้าซ่อน / ออกจากที่ซ่อน</p>
+    <div class="ex"><b>ในเกม:</b> ข้อมูลบอกว่าเมื่อปีศาจเข้าใกล้ ผู้เล่นมักวิ่งเข้าตู้ที่ใกล้สุดแทนการหนีออกจากห้อง
+      ได้ยินเสียงในห้องนอนขณะอยู่ใกล้ ปีศาจจึงเปิดตู้ในห้องนั้นก่อน</div>
+    <div class="weak"><b>จุดอ่อน:</b> ดีเท่าข้อมูลที่ใช้สอน สอนจากบอทแล้วใช้กับคน นิสัยไม่ตรง (RQ3)</div>
+  </div>
+</div>
+
+<h3>เทียบกันในตารางเดียว</h3>
+<div class="wrap"><table class="cmp">
+  <tr><th>สมอง</th><th>จำได้ว่าผู้เล่นน่าจะอยู่ไหน</th><th>คิดล่วงหน้า</th><th>รู้นิสัยผู้เล่น</th></tr>
+  <tr><td>1 · Rule</td><td class="no">✗ จำแค่เสียงล่าสุด</td><td class="no">✗</td><td class="no">✗</td></tr>
+  <tr><td>2 · Belief</td><td class="yes">✓</td><td class="no">✗</td><td class="no">✗</td></tr>
+  <tr><td>3 · POMCP</td><td class="yes">✓</td><td class="yes">✓</td><td class="no">✗ สมมติว่าเดินสุ่ม</td></tr>
+  <tr><td>4 · POMCP + model</td><td class="yes">✓</td><td class="yes">✓</td><td class="yes">✓</td></tr>
+</table></div>
+
+<details class="gloss"><summary>ศัพท์ที่ใช้ในเอกสาร (กดเพื่อเปิด)</summary>
+  <dl>
+    <dt>Partially observable</dt><dd>ผู้ตัดสินใจไม่เห็นสถานะจริงทั้งหมด ต้องเดาจากหลักฐาน</dd>
+    <dt>Particle filter</dt><dd>แทนความเชื่อด้วยจุดเดาจำนวนมาก ขยับตามการเคลื่อนที่ แล้วให้น้ำหนักตามหลักฐาน</dd>
+    <dt>POMCP</dt><dd>Partially Observable Monte Carlo Planning: สุ่มจำลองอนาคตจากความเชื่อ แล้วเลือกการกระทำที่ผลเฉลี่ยดีสุด</dd>
+    <dt>Opponent model</dt><dd>โมเดลทำนายว่าคู่ต่อสู้ (ผู้เล่น) จะทำอะไรในสถานการณ์หนึ่ง</dd>
+    <dt>Sim-to-real gap</dt><dd>ความต่างระหว่างผลในตัวจำลอง (บอท) กับผลเมื่อใช้กับคนจริง</dd>
+    <dt>Blind A/B</dt><dd>สุ่มสมองให้ผู้เล่นโดยผู้เล่นไม่รู้ว่าเจอแบบไหน</dd>
+  </dl>
+</details>
 
 <h2>3. สิ่งที่มีอยู่แล้ว</h2>
 <div class="wrap"><table>
@@ -154,6 +222,7 @@ footer { margin-top: 48px; color: var(--muted); font-size: .85rem; }
     <div class="bar"><span>pomcp</span><div class="track"><div class="fill c-pomcp" style="width:12.5%"></div></div><span>12.5%</span></div>
     <div class="bar"><span>pomcp+model</span><div class="track"><div class="fill c-model" style="width:31.5%"></div></div><span>31.5%</span></div>
   </div>
+  <p style="margin:0"><b>อ่านกราฟ:</b> แท่งยาว = ปีศาจจับผู้เล่นได้มาก · สีตรงกับสมองหมายเลข 1–4 ในหัวข้อที่ 2</p>
   <p style="color:var(--muted);font-size:.85rem;margin:0">100 คืนต่อแถว · seed เดียวกันทุกสมอง (ความต่างมาจากสมอง ไม่ใช่ดวง)</p>
 </div>
 
