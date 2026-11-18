@@ -53,69 +53,73 @@ local STEP_RISE = 1
 -- hunter makes its lair in.
 local ROOM_DEFS = {
 	-- floor 1 (level 0)
-	{ name = "Entrance Hall", level = 0, x0 = -32, z0 = 0, x1 = 32, z1 = 68, anchor = { 0, 10 } }, -- (measured from under the balcony: the pillar stands in the middle)
-	{ name = "Library", level = 0, x0 = -68, z0 = 20, x1 = -32, z1 = 48, holes = { { x0 = -64, z0 = 21.5, x1 = -40, z1 = 26.5 } } },
-	{ name = "Dining Room", level = 0, x0 = 32, z0 = 20, x1 = 68, z1 = 48 },
-	{ name = "Study", level = 0, x0 = -68, z0 = 0, x1 = -32, z1 = 20 },
-	{ name = "Ballroom", level = 0, x0 = -22, z0 = -48, x1 = 22, z1 = -10 },
-	{ name = "Kitchen", level = 0, x0 = 32, z0 = 0, x1 = 68, z1 = 20 },
-	{ name = "Conservatory", level = 0, x0 = -68, z0 = -48, x1 = -22, z1 = -10 },
-	{ name = "Servants' Hall", level = 0, x0 = 22, z0 = -48, x1 = 68, z1 = -10, holes = { { x0 = 61, z0 = -44, x1 = 67, z1 = -16 } } },
-	{ name = "Main Corridor", level = 0, x0 = -68, z0 = -10, x1 = 68, z1 = 0, kind = "passage" },
+	{ name = "Entrance Hall", level = 0, x0 = -44, z0 = 0, x1 = 44, z1 = 92, anchor = { 0, 10 } }, -- (measured from under the balcony: the pillar stands in the middle)
+	{ name = "Library", level = 0, x0 = -80, z0 = 20, x1 = -44, z1 = 48, holes = { { x0 = -72, z0 = 21, x1 = -52, z1 = 29 } } },
+	{ name = "Dining Room", level = 0, x0 = 44, z0 = 20, x1 = 80, z1 = 48 },
+	{ name = "Study", level = 0, x0 = -80, z0 = 0, x1 = -44, z1 = 20 },
+	{ name = "Ballroom", level = 0, x0 = -22, z0 = -54, x1 = 22, z1 = -16 },
+	{ name = "Kitchen", level = 0, x0 = 44, z0 = 0, x1 = 80, z1 = 20 },
+	{ name = "Conservatory", level = 0, x0 = -80, z0 = -54, x1 = -22, z1 = -16 },
+	{ name = "Servants' Hall", level = 0, x0 = 22, z0 = -54, x1 = 80, z1 = -16, holes = { { x0 = 70, z0 = -45, x1 = 79, z1 = -25 } } },
+	{ name = "Main Corridor", level = 0, x0 = -80, z0 = -16, x1 = 80, z1 = 0, kind = "passage" },
 	-- floor 2 (level 1)
-	{ name = "Landing", level = 1, x0 = -32, z0 = 0, x1 = 32, z1 = 68, anchor = { 0, 7 }, kind = "passage",
+	{ name = "Landing", level = 1, x0 = -44, z0 = 0, x1 = 44, z1 = 92, anchor = { 0, 7 }, kind = "passage",
 		-- the balcony along the back of the hall and a narrow gallery down each side; the rest is open to the hall
-		holes = { { x0 = -26, z0 = 14, x1 = 26, z1 = 68 }, { x0 = -32, z0 = 48, x1 = -26, z1 = 68 }, { x0 = 26, z0 = 48, x1 = 32, z1 = 68 } } },
-	{ name = "Upper Corridor", level = 1, x0 = -68, z0 = -10, x1 = 68, z1 = 0, kind = "passage" },
-	{ name = "Sitting Room", level = 1, x0 = -68, z0 = 0, x1 = -32, z1 = 20 },
-	{ name = "Master Bedroom", level = 1, x0 = -68, z0 = 20, x1 = -32, z1 = 48 },
-	{ name = "Bathroom", level = 1, x0 = 32, z0 = 0, x1 = 68, z1 = 20 },
-	{ name = "Guest Bedroom", level = 1, x0 = 32, z0 = 20, x1 = 68, z1 = 48 },
-	{ name = "Nursery", level = 1, x0 = -68, z0 = -48, x1 = -22, z1 = -10 },
-	{ name = "Portrait Gallery", level = 1, x0 = -22, z0 = -48, x1 = 22, z1 = -10 },
-	{ name = "Maid's Room", level = 1, x0 = 22, z0 = -48, x1 = 68, z1 = -10, holes = { { x0 = 54, z0 = -44, x1 = 60, z1 = -16 } } },
+		holes = { { x0 = -34, z0 = 12, x1 = 34, z1 = 84 } } },
+	{ name = "Upper Corridor", level = 1, x0 = -80, z0 = -16, x1 = 80, z1 = 0, kind = "passage" },
+	{ name = "Nursery", level = 1, x0 = -80, z0 = 0, x1 = -44, z1 = 20 }, -- (the small room next to the lady's)
+	{ name = "Lady's Bedroom", level = 1, x0 = -80, z0 = 20, x1 = -44, z1 = 48 },
+	{ name = "Bathroom", level = 1, x0 = 44, z0 = 0, x1 = 80, z1 = 20 },
+	{ name = "Guest Bedroom", level = 1, x0 = 44, z0 = 20, x1 = 80, z1 = 48 },
+	{ name = "Master Bedroom", level = 1, x0 = -80, z0 = -54, x1 = -22, z1 = -16 }, -- (the largest room upstairs)
+	{ name = "Portrait Gallery", level = 1, x0 = -22, z0 = -54, x1 = 22, z1 = -16 },
+	{ name = "Maid's Room", level = 1, x0 = 22, z0 = -54, x1 = 80, z1 = -16, holes = { { x0 = 61, z0 = -45, x1 = 70, z1 = -25 } } },
 	-- basement (level -1)
-	{ name = "Service Tunnel", level = -1, x0 = -68, z0 = -10, x1 = 68, z1 = 0, kind = "passage" },
-	{ name = "Boiler Room", level = -1, x0 = -68, z0 = -48, x1 = -22, z1 = -10 },
-	{ name = "Wine Cellar", level = -1, x0 = -22, z0 = -48, x1 = 22, z1 = -10 },
-	{ name = "Laundry", level = -1, x0 = 22, z0 = -48, x1 = 68, z1 = -10 },
-	{ name = "Catacombs", level = -1, x0 = -68, z0 = 0, x1 = -32, z1 = 48, anchor = { -50, 38 } }, -- (south of the secret stair)
-	{ name = "Crypt", level = -1, x0 = -32, z0 = 0, x1 = 32, z1 = 48 },
-	{ name = "Cold Storage", level = -1, x0 = 32, z0 = 0, x1 = 68, z1 = 20 },
+	{ name = "Service Tunnel", level = -1, x0 = -80, z0 = -16, x1 = 80, z1 = 0, kind = "passage" },
+	{ name = "Boiler Room", level = -1, x0 = -80, z0 = -54, x1 = -22, z1 = -16 },
+	{ name = "Wine Cellar", level = -1, x0 = -22, z0 = -54, x1 = 22, z1 = -16 },
+	{ name = "Laundry", level = -1, x0 = 22, z0 = -54, x1 = 80, z1 = -16 },
+	{ name = "Catacombs", level = -1, x0 = -80, z0 = 0, x1 = -44, z1 = 48, anchor = { -62, 38 } }, -- (south of the secret stair)
+	{ name = "Crypt", level = -1, x0 = -44, z0 = 0, x1 = 44, z1 = 48 },
+	{ name = "Cold Storage", level = -1, x0 = 44, z0 = 0, x1 = 80, z1 = 20 },
 }
 
 -- Doorways between rooms of the same level: { roomA, roomB, position along the shared wall, width }
--- (x for a wall that runs along X, z for a wall that runs along Z). 6-8 = a door; 12 = an open archway.
+-- (x for a wall that runs along X, z for a wall that runs along Z). 6-8 = a door; 12 = an open archway;
+-- a fifth field "open" = a doorway of that width with a cased arch and no door leaf.
 local DOORS = {
 	-- floor 1: the corridor runs end to end behind the hall; the hall opens to the study, library and dining room
-	{ 9, 7, -45, 6 }, { 9, 5, 0, 12 }, { 9, 8, 45, 6 }, { 5, 7, -29, 6 }, { 5, 8, -29, 6 },
-	{ 9, 4, -50, 6 }, { 9, 1, 0, 12 }, { 9, 6, 50, 6 }, { 4, 2, -35, 6 }, { 6, 3, 50, 6 },
-	{ 1, 4, 8, 8 }, { 1, 2, 44, 6 }, { 1, 3, 44, 6 },
+	{ 9, 7, -51, 6 }, { 9, 5, 0, 12 }, { 9, 8, 51, 6 }, { 5, 8, -35, 6, "open" }, -- (no way from the ballroom into the conservatory)
+	{ 9, 4, -62, 6 }, { 9, 1, 0, 12 }, { 9, 6, 62, 6 }, { 4, 2, -48.5, 6, "open" }, { 6, 3, 62, 6, "open" },
+	{ 1, 4, 8, 8 }, { 1, 2, 41, 6 }, { 1, 3, 41, 6 }, -- (clear of the corner: a doorway's frame needs 2 studs of wall each side)
 	-- floor 2: the bedrooms open onto the side galleries of the landing as well as their own rooms
-	{ 11, 16, -45, 6 }, { 11, 17, 0, 12 }, { 11, 18, 45, 6 }, { 16, 17, -29, 6 }, { 17, 18, -29, 6 },
-	{ 11, 12, -50, 6 }, { 11, 10, 0, 12 }, { 11, 14, 50, 6 }, { 12, 13, -50, 6 }, { 14, 15, 50, 6 },
+	{ 11, 16, -51, 6 }, { 11, 17, 0, 12 }, { 11, 18, 51, 6 },
+	{ 11, 12, -62, 6 }, { 11, 10, 0, 12 }, { 11, 14, 62, 6 }, { 12, 13, -62, 6 }, { 14, 15, 62, 6 },
 	{ 10, 12, 7, 8 }, { 10, 13, 34, 6 }, { 10, 15, 34, 6 },
 	-- basement
-	{ 19, 20, -45, 6 }, { 19, 21, 0, 12 }, { 19, 22, 45, 6 }, { 20, 21, -29, 6 }, { 21, 22, -29, 6 },
-	{ 19, 23, -50, 6 }, { 19, 24, 0, 12 }, { 19, 25, 50, 6 }, { 23, 24, 30, 8 },
+	{ 19, 20, -51, 6 }, { 19, 21, 0, 12 }, { 19, 22, 51, 6 },
+	{ 19, 23, -62, 6 }, { 19, 24, 0, 12 }, { 19, 25, 62, 6 }, { 23, 24, 30, 8 },
 }
 
 -- Staircases: the foot is in `low`, the top in `high`; width across, 1 stud rise per step.
 -- (lx, lz) = where the lowest step starts, (hx, hz) = where the top step ends and the upper floor begins.
--- (cx, cz), if given, bends the flight: it is the control point of a curve from the foot to the top.
+-- (cx, cz), if given, bends the flight: the control point of a curve from the foot to the top; with (c2x, c2z)
+-- as well it is a two-handled curve, for a sweep that swings out and comes back.
+-- arc = true: (cx, cz) is a point on the flight's centre line and the flight is a true circular arc through
+-- the foot, that point and the top, with fan-shaped treads.
 -- railTo (0..1): how far up the flight its balustrade runs (default all the way).
 -- Both ends open onto floor (the foot toward the room, the top toward the upper room); the open sides
 -- of the flight get balustrades.
 local STAIRS = {
-	-- the hall's two grand flights start halfway back and curve in toward the middle to meet the balcony
-	-- behind the pillar, leaving the front of the hall (by the door) wide open
-	{ low = 1, high = 10, lx = -22, lz = 40, cx = -23, cz = 22, hx = -12, hz = 14, width = 7 }, -- hall, west flight
-	{ low = 1, high = 10, lx = 22, lz = 40, cx = 23, cz = 22, hx = 12, hz = 14, width = 7 }, -- hall, east flight
+	-- the imperial stair: from the front of the hall each flight runs straight back, then sweeps a quarter circle
+	-- inward, and the two meet on the bowed landing over the archway to the corridor
+	{ low = 1, high = 10, lx = -27, lz = 38, cx = -21.142, cz = 23.858, arc = true, hx = -7, hz = 18, width = 12, footRun = 6, footSteps = 3, steps = 17 }, -- hall, west flight
+	{ low = 1, high = 10, lx = 27, lz = 38, cx = 21.142, cz = 23.858, arc = true, hx = 7, hz = 18, width = 12, footRun = 6, footSteps = 3, steps = 17 }, -- hall, east flight
 	-- the servants' back stair in the north-east corner: laundry -> servants' hall -> maid's room
-	{ low = 22, high = 8, lx = 64, lz = -16, hx = 64, hz = -44, width = 6 },
-	{ low = 8, high = 18, lx = 57, lz = -44, hx = 57, hz = -16, width = 6 },
+	{ low = 22, high = 8, lx = 74.5, lz = -25, hx = 74.5, hz = -45, width = 9 }, -- (9 studs of floor at the foot and at the head)
+	{ low = 8, high = 18, lx = 65.5, lz = -45, hx = 65.5, hz = -25, width = 9 },
 	-- the secret stair behind the library's bookcases, down to the catacombs
-	{ low = 23, high = 2, lx = -42, lz = 24, hx = -64, hz = 24, width = 5, railTo = 0.75 },
+	{ low = 23, high = 2, lx = -52, lz = 25, hx = -72, hz = 25, width = 8, railTo = 0.75 },
 }
 
 -- The front door of the mansion (outer wall of a room): { room, side, position along the wall }.
@@ -145,7 +149,7 @@ local HIDES = {
 	{ room = 23, wall = "S", along = 10 },
 	{ room = 24, wall = "S", along = -26 },
 	{ room = 24, wall = "S", along = 26 },
-	{ room = 8, x = -5, z = 0, spot = "table" }, -- the servants' long table
+	{ room = 5, x = -8, z = 1, spot = "table" }, -- a draped table in the ballroom (moved from the servants' hall)
 	{ room = 4, x = 3, z = 0, spot = "table" }, -- Study desk
 	{ room = 2, x = 0, z = 2, spot = "table" }, -- Library reading table
 	{ room = 6, x = -4, z = 1, spot = "table" }, -- Kitchen table
@@ -249,7 +253,50 @@ end
 
 -- The centre line of a staircase from its foot to its top as `count` + 1 evenly spaced points (y = 0):
 -- a straight line, or a curve through the control point (cx, cz). Also returns the length.
+-- The circle of an arc flight: centre (y 0), radius, and the angles of the foot and top (pos = centre + r * (cos a, 0, sin a)).
+function HouseGraph.stairArc(s): (Vector3, number, number, number)
+	local ax, az, bx, bz, cx, cz = s.lx, s.lz, s.cx, s.cz, s.hx, s.hz
+	local d = 2 * (ax * (bz - cz) + bx * (cz - az) + cx * (az - bz))
+	local a2, b2, c2 = ax * ax + az * az, bx * bx + bz * bz, cx * cx + cz * cz
+	local ox = (a2 * (bz - cz) + b2 * (cz - az) + c2 * (az - bz)) / d
+	local oz = (a2 * (cx - bx) + b2 * (ax - cx) + c2 * (bx - ax)) / d
+	local radius = math.sqrt((ax - ox) ^ 2 + (az - oz) ^ 2)
+	local a0 = math.atan2(az - oz, ax - ox)
+	local function wrap(a)
+		return (a + math.pi) % (2 * math.pi) - math.pi
+	end
+	local via, sweep = wrap(math.atan2(bz - oz, bx - ox) - a0), wrap(math.atan2(cz - oz, cx - ox) - a0)
+	if via * sweep < 0 or math.abs(via) > math.abs(sweep) then
+		sweep += if sweep > 0 then -2 * math.pi else 2 * math.pi -- the long way round, through the middle point
+	end
+	return Vector3.new(ox, 0, oz), radius, a0, a0 + sweep
+end
+
+-- A point on an arc flight (y 0): `t` steps up (0 = the foot, s.steps = the top), `o` studs outward from its centre line.
+function HouseGraph.arcEdge(s, o: number, t: number): Vector3
+	local centre, radius, a0, a1 = HouseGraph.stairArc(s)
+	if t <= s.footSteps then
+		local out = Vector3.new(math.cos(a0), 0, math.sin(a0))
+		return centre + out * (radius + o) + Vector3.new(0, 0, s.footRun * (1 - t / s.footSteps))
+	end
+	local a = a0 + (a1 - a0) * (t - s.footSteps) / (s.steps - s.footSteps)
+	return centre + Vector3.new(math.cos(a), 0, math.sin(a)) * (radius + o)
+end
+
 function HouseGraph.stairPath(s, count: number): ({ Vector3 }, number)
+	if s.arc then
+		local points = {}
+		local previous, length = nil, 0
+		for k = 0, count do
+			local p = HouseGraph.arcEdge(s, 0, k / count * s.steps)
+			points[k + 1] = p
+			if previous then
+				length += (p - previous).Magnitude
+			end
+			previous = p
+		end
+		return points, length
+	end
 	local p0 = Vector3.new(s.lx, 0, s.lz)
 	local p2 = Vector3.new(s.hx, 0, s.hz)
 	local p1 = if s.cx then Vector3.new(s.cx, 0, s.cz) else (p0 + p2) / 2
@@ -258,7 +305,11 @@ function HouseGraph.stairPath(s, count: number): ({ Vector3 }, number)
 	for i = 0, samples do
 		local t = i / samples
 		local u = 1 - t
-		dense[i + 1] = p0 * (u * u) + p1 * (2 * u * t) + p2 * (t * t)
+		if s.c2x then
+			dense[i + 1] = p0 * (u * u * u) + p1 * (3 * u * u * t) + Vector3.new(s.c2x, 0, s.c2z) * (3 * u * t * t) + p2 * (t * t * t)
+		else
+			dense[i + 1] = p0 * (u * u) + p1 * (2 * u * t) + p2 * (t * t)
+		end
 	end
 	for i = 2, #dense do
 		lengths[i] = lengths[i - 1] + (dense[i] - dense[i - 1]).Magnitude
@@ -353,7 +404,7 @@ end
 -- A fingerprint of the layout. The house saved in the place stores it, so a stale house
 -- (built before the graph changed) is detected and rebuilt instead of silently disagreeing.
 function HouseGraph.signature(graph: Graph): string
-	local parts = { ("mansion v3 rooms %d"):format(#graph.rooms) }
+	local parts = { ("mansion v6 rooms %d"):format(#graph.rooms) }
 	for _, r in graph.rooms do
 		table.insert(parts, ("%s:%d:%g,%g,%g,%g"):format(r.name, r.level, r.x0, r.z0, r.x1, r.z1))
 	end
@@ -403,6 +454,92 @@ function HouseGraph.route(graph: Graph, from: number, to: number, fromPos: Vecto
 		end
 	end
 	return out
+end
+
+-- Does the straight walk p -> q pass over the inside of floor opening `h`? (Liang-Barsky, on the ground plane)
+local function crossesHole(h, p: Vector3, q: Vector3): boolean
+	local t0, t1 = 0, 1
+	local dx, dz = q.X - p.X, q.Z - p.Z
+	for _, c in { { -dx, p.X - h.x0 }, { dx, h.x1 - p.X }, { -dz, p.Z - h.z0 }, { dz, h.z1 - p.Z } } do
+		if c[1] == 0 then
+			if c[2] <= 0 then
+				return false
+			end
+		elseif c[1] < 0 then
+			t0 = math.max(t0, c[2] / c[1])
+		else
+			t1 = math.min(t1, c[2] / c[1])
+		end
+	end
+	return t1 - t0 > 1e-3
+end
+
+local HOLE_MARGIN = 2.5 -- how far from an opening's edge a walker keeps
+
+-- `p` moved off the room's floor openings: a point over the hall void becomes the nearest point of the gallery.
+function HouseGraph.offHole(room: number, p: Vector3): Vector3
+	for _, h in ROOM_LIST[room].holes do
+		if p.X > h.x0 and p.X < h.x1 and p.Z > h.z0 and p.Z < h.z1 then
+			local best, bestD = p, math.huge
+			for _, c in {
+				{ p.X - h.x0, Vector3.new(h.x0 - HOLE_MARGIN, p.Y, p.Z) }, { h.x1 - p.X, Vector3.new(h.x1 + HOLE_MARGIN, p.Y, p.Z) },
+				{ p.Z - h.z0, Vector3.new(p.X, p.Y, h.z0 - HOLE_MARGIN) }, { h.z1 - p.Z, Vector3.new(p.X, p.Y, h.z1 + HOLE_MARGIN) },
+			} do
+				if c[1] < bestD then
+					best, bestD = c[2], c[1]
+				end
+			end
+			return best
+		end
+	end
+	return p
+end
+
+-- The corners to walk round so that going from `a` to `b` inside `room` never crosses an opening in its floor
+-- (the landing is a gallery round the hall void). Empty when the straight line is clear. If `b` itself lies over
+-- the opening (a stair head on the bow landing), the list ends at the gallery edge nearest to it.
+-- ponytail: handles the first blocking opening only; rooms have one each. Chain them if a room ever gets two.
+function HouseGraph.detour(room: number, a: Vector3, b: Vector3): { Vector3 }
+	local r = ROOM_LIST[room]
+	local from, to = HouseGraph.offHole(room, a), HouseGraph.offHole(room, b)
+	local out = {}
+	local lead = if from ~= a then { from } else {} -- (standing over the opening, on a stair head: step off it first)
+	for _, h in r.holes do
+		if crossesHole(h, from, to) then
+			local function corner(x, z)
+				return Vector3.new(math.clamp(x, r.x0 + 1, r.x1 - 1), a.Y, math.clamp(z, r.z0 + 1, r.z1 - 1))
+			end
+			local m = HOLE_MARGIN
+			local c = { corner(h.x0 - m, h.z0 - m), corner(h.x1 + m, h.z0 - m), corner(h.x1 + m, h.z1 + m), corner(h.x0 - m, h.z1 + m) }
+			local bestLen = math.huge
+			for i = 1, 4 do
+				if not crossesHole(h, from, c[i]) then
+					for dir = -1, 1, 2 do
+						local path, len, j = { c[i] }, (c[i] - from).Magnitude, i
+						for _ = 1, 4 do
+							if not crossesHole(h, c[j], to) then
+								len += (to - c[j]).Magnitude
+								if len < bestLen then
+									bestLen, out = len, table.clone(path)
+								end
+								break
+							end
+							local k = (j - 1 + dir) % 4 + 1
+							len += (c[k] - c[j]).Magnitude
+							j = k
+							table.insert(path, c[j])
+						end
+					end
+				end
+			end
+			break
+		end
+	end
+	table.move(out, 1, #out, #lead + 1, lead)
+	if to ~= b then
+		table.insert(lead, to)
+	end
+	return lead
 end
 
 -- The room containing a house-local position. `y` decides the level: the room whose floor is the

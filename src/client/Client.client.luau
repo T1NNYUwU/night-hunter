@@ -23,6 +23,7 @@ local TitleScreen = require(script.Parent:WaitForChild("TitleScreen"))
 local ShopPanel = require(script.Parent:WaitForChild("ShopPanel"))
 local HideView = require(script.Parent:WaitForChild("HideView"))
 local FlashlightBeam = require(script.Parent:WaitForChild("FlashlightBeam"))
+local Atmosphere = require(script.Parent:WaitForChild("Atmosphere"))
 local remotes = ReplicatedStorage:WaitForChild("NightHunterRemotes")
 local state = Workspace:WaitForChild("NightHunterState")
 
@@ -236,7 +237,7 @@ local function localSound(id: string, volume: number, looped: boolean): Sound
 	s.Parent = SoundService
 	return s
 end
-local ambience = localSound(Sounds.ambience, 0, true)
+local atmosphere = Atmosphere.start(state, player)
 local heartbeat = localSound(Sounds.heartbeat, 0, true)
 local scare = localSound(Sounds.hunterGrowl, 2, false)
 
@@ -256,7 +257,7 @@ local function setPeaceMute(peace: boolean)
 	peaceMuted = peace
 	for _, root in { SoundService, Workspace } do
 		for _, d in root:GetDescendants() do
-			if d:IsA("Sound") and d ~= ambience and d ~= heartbeat and d ~= scare then
+			if d:IsA("Sound") and not d:GetAttribute("Managed") and d ~= heartbeat and d ~= scare then
 				muteSound(d)
 			end
 		end
@@ -264,14 +265,13 @@ local function setPeaceMute(peace: boolean)
 end
 local function watchSounds(root: Instance)
 	root.DescendantAdded:Connect(function(d)
-		if d:IsA("Sound") and peaceMuted then
+		if d:IsA("Sound") and peaceMuted and not d:GetAttribute("Managed") then
 			muteSound(d)
 		end
 	end)
 end
 watchSounds(Workspace)
 watchSounds(SoundService)
-ambience:Play()
 heartbeat:Play()
 
 ---------------------------------------------------------------- feedback loops
@@ -375,10 +375,9 @@ RunService:BindToRenderStep("NightHunterView", Enum.RenderPriority.Camera.Value 
 	end
 	closeness = math.max(closeness, hideView.suspicion()) -- hidden: your heart follows its suspicion
 	local pulse = 0.5 + 0.5 * math.sin(os.clock() * (4 + closeness * 8))
-	local night = state:GetAttribute("Phase") == "Night"
 	local peace = state:GetAttribute("Peace") == true
 	setPeaceMute(peace)
-	ambience.Volume += ((if peace then 0 elseif night then 0.45 else 0.12) - ambience.Volume) * 0.1
+	atmosphere.update(dt, if peace then 0 else closeness, title.isOpen())
 	heartbeat.Volume = if peace then 0 else closeness * 1.1
 	scare.Volume = if peace then 0 else 2
 	heartbeat.PlaybackSpeed = 1 + closeness * 0.5
@@ -428,7 +427,7 @@ task.spawn(function()
 				elseif dead[light] and now < dead[light] then
 					light.Brightness = 0
 				elseif CollectionService:HasTag(light.Parent, "NightHunterFlicker") then
-					if rng:NextNumber() < 0.006 then
+					if rng:NextNumber() < 0.003 then -- (0.011 kept one light in eight dark at any moment)
 						dead[light] = now + rng:NextNumber(0.4, 2.5) -- the bulb gives out for a moment
 					end
 					light.Brightness = if rng:NextNumber() < 0.08 then base * 0.15 else base * rng:NextNumber(0.85, 1.1)
@@ -457,7 +456,7 @@ do
 		edge.ZIndex = 0
 		edge.Parent = vignette
 		local g = Instance.new("UIGradient")
-		g.Transparency = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.25), NumberSequenceKeypoint.new(0.22, 1), NumberSequenceKeypoint.new(1, 1) })
+		g.Transparency = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.55), NumberSequenceKeypoint.new(0.16, 1), NumberSequenceKeypoint.new(1, 1) })
 		g.Rotation = rot -- one edge each: left, top, right, bottom
 		g.Parent = edge
 	end
@@ -483,6 +482,13 @@ while true do
 
 	title.update()
 	shop.update()
+	do -- the title screen stands alone: no HUD behind it
+		local playing = not title.isOpen()
+		for _, element in { info, wallet, status, peaceTag, banner, downNotice } do
+			element.Visible = playing
+		end
+		debugInfo.Visible = playing and RunService:IsStudio()
+	end
 	peaceTag.Text = if state:GetAttribute("Peace") == true then "PEACE MODE: no hunter, no music, the night never ends" .. (if RunService:IsStudio() then "  (P to turn off)" else "") else ""
 
 	-- Where am I: "FLOOR 1  ·  Library" (floors: basement, floor 1, floor 2)

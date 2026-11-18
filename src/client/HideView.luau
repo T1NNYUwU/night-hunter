@@ -16,7 +16,7 @@ local Workspace = game:GetService("Workspace")
 local HideView = {}
 
 local LOOK = { -- yaw / pitch limits (radians) per kind
-	wardrobe = { yaw = 0.55, up = 0.25, down = 0.35 },
+	wardrobe = { yaw = 0.8, up = 0.3, down = 0.45 },
 	table = { yaw = 0.9, up = 0.12, down = 0.25 },
 }
 local SENSITIVITY = 0.0035
@@ -66,8 +66,8 @@ function HideView.mount(gui: ScreenGui, player: Player, remotes: Folder)
 	-- Wardrobe: two dark wooden doors with a thin bright gap between them.
 	local doors = frame(root, { size = UDim2.fromScale(1, 1), transparency = 1 })
 	local woodColor = Color3.fromRGB(22, 15, 11)
-	local left = frame(doors, { size = UDim2.fromScale(0.43, 1), color = woodColor })
-	local right = frame(doors, { size = UDim2.fromScale(0.43, 1), pos = UDim2.fromScale(1, 0), anchor = Vector2.new(1, 0), color = woodColor })
+	local left = frame(doors, { size = UDim2.fromScale(0.3, 1), color = woodColor })
+	local right = frame(doors, { size = UDim2.fromScale(0.3, 1), pos = UDim2.fromScale(1, 0), anchor = Vector2.new(1, 0), color = woodColor })
 	-- (No UIGradient on solid panels: it made them see-through. They must be opaque.)
 	-- Slats: a few faint horizontal lines on each door, so it reads as wood.
 	for i = 1, 6 do
@@ -75,14 +75,16 @@ function HideView.mount(gui: ScreenGui, player: Player, remotes: Folder)
 			frame(door, { size = UDim2.new(1, 0, 0, 2), pos = UDim2.fromScale(0, i / 7), color = Color3.fromRGB(40, 28, 20), z = 6 })
 		end
 	end
-	-- The top and bottom of the gap are shut, so you peek through a slit, not a full-height window.
-	frame(doors, { size = UDim2.new(0.14, 0, 0.14, 0), pos = UDim2.fromScale(0.5, 0), anchor = Vector2.new(0.5, 0), color = woodColor })
-	frame(doors, { size = UDim2.new(0.14, 0, 0.14, 0), pos = UDim2.fromScale(0.5, 1), anchor = Vector2.new(0.5, 1), color = woodColor })
+	-- Soft shadow where the doors meet the view.
+	for _, side in { { 0.3, 0 }, { 0.62, 180 } } do
+		local edge = frame(doors, { size = UDim2.fromScale(0.08, 1), pos = UDim2.fromScale(side[1], 0), color = woodColor })
+		gradient(edge, side[2], 0.1, 1)
+	end
 
 	-- Table: the cloth hangs over most of the view; you see the floor under its hem.
-	local cloth = frame(root, { size = UDim2.fromScale(1, 0.62), color = Color3.fromRGB(70, 62, 52) })
+	local cloth = frame(root, { size = UDim2.fromScale(1, 0.34), color = Color3.fromRGB(70, 62, 52) })
 	frame(cloth, { size = UDim2.new(1, 0, 0, 14), pos = UDim2.fromScale(0, 1), color = Color3.fromRGB(95, 86, 72), z = 6 })
-	local under = frame(root, { size = UDim2.fromScale(1, 0.38), pos = UDim2.fromScale(0, 1), anchor = Vector2.new(0, 1), color = Color3.new(0, 0, 0), transparency = 0.75 })
+	local under = frame(root, { size = UDim2.fromScale(1, 0.1), pos = UDim2.fromScale(0, 1), anchor = Vector2.new(0, 1), color = Color3.new(0, 0, 0), transparency = 0.6 })
 
 	-- HUD
 	local hint = text(root, {
@@ -107,6 +109,39 @@ function HideView.mount(gui: ScreenGui, player: Player, remotes: Folder)
 	local yaw, pitch = 0, 0
 	local hidden = false
 	local kind = "wardrobe"
+
+	-- Your eyes have adjusted: only you get a faint light on the room outside, and the hunter's outline, so
+	-- you can watch it walk past the gap.
+	local glow = Instance.new("Part")
+	glow.Name = "HideGlow"
+	glow.Anchored = true
+	glow.CanCollide = false
+	glow.CanQuery = false
+	glow.CanTouch = false
+	glow.CastShadow = false
+	glow.Transparency = 1
+	glow.Size = Vector3.one
+	local glowLight = Instance.new("PointLight")
+	glowLight.Color = Color3.fromRGB(170, 185, 225)
+	glowLight.Range = 40
+	glowLight.Brightness = 1.1
+	glowLight.Shadows = false
+	glowLight.Parent = glow
+	local outline = Instance.new("Highlight")
+	outline.Name = "HiddenHunterOutline"
+	outline.FillTransparency = 0.92
+	outline.FillColor = Color3.fromRGB(150, 20, 20)
+	outline.OutlineColor = Color3.fromRGB(190, 40, 40)
+	outline.OutlineTransparency = 0.35
+	outline.DepthMode = Enum.HighlightDepthMode.Occluded
+
+	local function setSight(on: boolean)
+		glow.Parent = if on then Workspace else nil
+		local house = Workspace:FindFirstChild("NightHunterHouse")
+		local hunter = house and house:FindFirstChild("Hunter")
+		outline.Adornee = if on then hunter else nil
+		outline.Parent = if on and hunter then Workspace else nil
+	end
 
 	local function bindControls(on: boolean)
 		if on then
@@ -164,6 +199,7 @@ function HideView.mount(gui: ScreenGui, player: Player, remotes: Folder)
 			yaw, pitch = 0, 0
 			bindControls(hidden)
 			root.Visible = hidden
+			setSight(hidden)
 			if hidden then
 				camera.CameraType = Enum.CameraType.Scriptable
 			else
@@ -189,6 +225,7 @@ function HideView.mount(gui: ScreenGui, player: Player, remotes: Folder)
 		local eye = player:GetAttribute("HideEye")
 		if typeof(eye) == "CFrame" then
 			camera.CFrame = eye * CFrame.Angles(0, yaw, 0) * CFrame.Angles(pitch, 0, 0)
+			glow.CFrame = eye * CFrame.new(0, 2, -9)
 		end
 
 		local breath = player:GetAttribute("Breath") or 1

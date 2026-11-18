@@ -21,10 +21,10 @@ Geometry.ARCH_HEIGHT = 12.5 -- wide doorways (12+) are open archways without a d
 Geometry.ENTRANCE_WIDTH = 10
 Geometry.ENTRANCE_HEIGHT = 13
 
-local function doorPosition(a: number, b: number): (number?, number?)
+local function doorPosition(a: number, b: number): (number?, number?, boolean?)
 	for _, d in HouseGraph.DOORS do
 		if (d[1] == a and d[2] == b) or (d[1] == b and d[2] == a) then
-			return d[3], d[4]
+			return d[3], d[4], d[5] == "open"
 		end
 	end
 	return nil, nil
@@ -84,7 +84,7 @@ function Geometry.segments(graph)
 					side = side,
 				}
 				if other then
-					seg.doorAt, seg.doorWidth = doorPosition(room.id, other.id)
+					seg.doorAt, seg.doorWidth, seg.doorOpen = doorPosition(room.id, other.id)
 					if seg.doorAt and (seg.doorAt < from or seg.doorAt > to) then
 						seg.doorAt = nil
 					end
@@ -125,7 +125,7 @@ function Geometry.doorSize(seg): (number, number)
 end
 
 function Geometry.isArch(seg): boolean
-	return not seg.entrance and (seg.doorWidth or 0) >= 12
+	return not seg.entrance and (seg.doorOpen or (seg.doorWidth or 0) >= 12)
 end
 
 -- A rectangle with a rectangular hole cut out of it -> up to four rectangles { x0, z0, x1, z1 }.

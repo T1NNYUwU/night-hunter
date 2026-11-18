@@ -53,10 +53,11 @@ local PATROL_SPEED = { 10, 11, 12, 13, 14, 15, 16 }
 local CHARGE_SPEED = { 15, 16, 17, 18, 19, 19, 20 }
 local HEARING = { 0.75, 0.8, 0.85, 0.9, 0.95, 1.0, 1.0 }
 
--- The house is lit a little by day (to plan and shop), and nearly dark at night.
+-- The house is lit a little by day (to plan and shop), and nearly dark at night. Ambient is the fill light: cold
+-- blue-grey against the warm lamps, and never zero, so floor, wall and doorway stay apart even in the dark.
 local MOODS = {
-	day = { Ambient = Color3.fromRGB(40, 42, 58), OutdoorAmbient = Color3.fromRGB(36, 39, 56), Brightness = 0.2 },
-	night = { Ambient = Color3.fromRGB(8, 8, 13), OutdoorAmbient = Color3.fromRGB(7, 8, 13), Brightness = 0.03 },
+	day = { Ambient = Color3.fromRGB(46, 50, 60), OutdoorAmbient = Color3.fromRGB(46, 50, 62), Brightness = 0.25 },
+	night = { Ambient = Color3.fromRGB(20, 23, 32), OutdoorAmbient = Color3.fromRGB(18, 21, 32), Brightness = 0.08 },
 }
 local function setMood(name: string, seconds: number)
 	if seconds <= 0 then
@@ -432,8 +433,8 @@ function NightCycle.start(house)
 	local function setSocket(index: number, filled: boolean)
 		local socket = pillar and pillar:FindFirstChild("Socket" .. index)
 		if socket then
-			socket.Color = if filled then Color3.fromRGB(90, 255, 210) else Color3.fromRGB(32, 34, 40)
-			socket.Material = if filled then Enum.Material.Neon else Enum.Material.Metal
+			socket.Color = if filled then Color3.fromRGB(255, 196, 96) else Color3.fromRGB(150, 26, 18) -- an empty socket smoulders
+			socket.Material = Enum.Material.Neon
 		end
 	end
 
@@ -565,7 +566,7 @@ function NightCycle.start(house)
 		for i = 1, HouseDecor.SOCKETS do
 			setSocket(i, false)
 		end
-		altarLight(0.35)
+		altarLight(0.9)
 		spawnRelics(#RELICS)
 
 		local anchor = pillar and pillar:FindFirstChild("AltarPrompt")
@@ -608,7 +609,7 @@ function NightCycle.start(house)
 		for i = 1, HouseDecor.SOCKETS do
 			setSocket(i, false)
 		end
-		altarLight(0.35)
+		altarLight(0.9)
 		keyTaken = false
 		stage, relicsPlaced = "relics", 0
 		for _, player in Players:GetPlayers() do

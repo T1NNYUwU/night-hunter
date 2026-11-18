@@ -64,16 +64,17 @@ local function buildFlashlight(): Tool
 	weld.Part1 = lens
 	weld.Parent = lens
 
-	local beam = Instance.new("SpotLight")
-	beam.Name = "Beam"
-	beam.Face = Enum.NormalId.Front
-	beam.Angle = 50
-	beam.Range = 40
-	beam.Brightness = 3
-	beam.Color = Color3.fromRGB(255, 244, 220)
-	beam.Shadows = true
-	beam.Enabled = false
-	beam.Parent = handle
+	-- What OTHER players see in your hand (same as StarterPack.Flashlight). Your own view: FlashlightBeam's cones.
+	for name, l in { Beam = { 30, 2.5, 60 }, Halo = { 60, 0.5, 30 } } do
+		local cone = Instance.new("SpotLight")
+		cone.Name = name
+		cone.Face = Enum.NormalId.Front
+		cone.Angle, cone.Brightness, cone.Range = l[1], l[2], l[3]
+		cone.Color = Color3.fromRGB(232, 238, 255)
+		cone.Shadows = name == "Beam"
+		cone.Enabled = false
+		cone.Parent = handle
+	end
 	return tool
 end
 

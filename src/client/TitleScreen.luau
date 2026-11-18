@@ -1,64 +1,89 @@
 --!nonstrict
--- Title screen: name, one-line pitch, saved stats, PLAY and HOW TO PLAY.
+-- Title screen: a slow camera in the candle-lit hall, the name on the left, three quiet menu lines.
 -- Shown while the server waits for someone to start, and to players who join mid-run.
 -- Its buttons are Modal, so the mouse is free while it is up (the game is first person).
 
+local RunService = game:GetService("RunService")
+local TweenService = game:GetService("TweenService")
+local Workspace = game:GetService("Workspace")
+
 local TitleScreen = {}
 
-local RED = Color3.fromRGB(200, 40, 40)
+local BLOOD = Color3.fromRGB(176, 22, 26)
+local BONE = Color3.fromRGB(226, 216, 200)
+local ASH = Color3.fromRGB(150, 142, 134)
+local MARGIN = 0.075
 
 local HELP = [[
-SURVIVE 7 NIGHTS, THEN ESCAPE.
+<b>SURVIVE 7 NIGHTS, THEN ESCAPE.</b>
 
-The hunter is BLIND. It hunts by sound.
-  · Shift  run  — fast, but LOUD
-  · C      sneak — slow and almost silent
-  · Standing still makes no sound at all.
-  · Hide in a wardrobe if it comes close.
+The hunter is <b>blind</b>. It hunts by sound.
 
-Every night has a job: collect crates, fix fuse boxes,
-and on night 7 find the relics, put them on the altar by the
-pillar, take the key and leave through the front door.
-Doing the job is loud. Plan your route during the day —
-you can see which room the hunter sleeps in.
+<b>Shift</b>   run: fast, but loud
+<b>C</b>   sneak: slow and almost silent
+Standing still makes no sound at all.
+Hide in a wardrobe if it comes close.
 
-  · 1  take out the flashlight, click = light on/off   · E  interact / revive a teammate
-  · V  shop (day)   · Q  Noise Maker   · R  Battery   · X  Adrenaline
+Each night has a job. Doing it is loud.
+Plan your route during the day: you can see where it sleeps.
+On night 7, bring the relics to the altar by the pillar,
+take the key and leave through the front door.
+
+<b>1</b>  flashlight, click to switch   <b>E</b>  interact, doors, revive
+<b>V</b>  shop (day)   <b>Q</b>  Noise Maker   <b>R</b>  Battery   <b>X</b>  Adrenaline
 ]]
 
 local function label(parent, props)
 	local l = Instance.new("TextLabel")
 	l.BackgroundTransparency = 1
-	l.Font = props.font or Enum.Font.GothamMedium
+	l.Font = props.font or Enum.Font.Gotham
 	l.TextSize = props.size or 18
-	l.TextColor3 = props.color or Color3.new(1, 1, 1)
+	l.TextColor3 = props.color or BONE
 	l.Size = props.frame
 	l.Position = props.pos
-	l.AnchorPoint = props.anchor or Vector2.new(0.5, 0)
+	l.AnchorPoint = props.anchor or Vector2.zero
 	l.TextWrapped = true
-	l.TextXAlignment = props.alignX or Enum.TextXAlignment.Center
+	l.RichText = props.rich == true
+	l.TextXAlignment = props.alignX or Enum.TextXAlignment.Left
 	l.TextYAlignment = props.alignY or Enum.TextYAlignment.Top
 	l.Text = props.text or ""
+	l.ZIndex = 22
 	l.Parent = parent
 	return l
 end
 
-local function button(parent, text, pos, color)
+-- One line of the menu: text, and a red rule that grows when you point at it.
+local function menuLine(parent, text: string, y: number, primary: boolean)
 	local b = Instance.new("TextButton")
-	b.Size = UDim2.fromOffset(220, 54)
-	b.AnchorPoint = Vector2.new(0.5, 0)
-	b.Position = pos
-	b.BackgroundColor3 = color
-	b.TextColor3 = Color3.new(1, 1, 1)
-	b.Font = Enum.Font.GothamBold
-	b.TextSize = 22
+	b.AutoButtonColor = false
+	b.BackgroundTransparency = 1
+	b.Size = UDim2.fromOffset(320, 50)
+	b.Position = UDim2.new(MARGIN, 0, 0.5, y)
+	b.Font = if primary then Enum.Font.GothamBold else Enum.Font.GothamMedium
+	b.TextSize = if primary then 26 else 20
+	b.TextColor3 = if primary then BONE else ASH
+	b.TextXAlignment = Enum.TextXAlignment.Left
 	b.Text = text
-	b.Modal = true -- frees the mouse while the title is up
-	b.AutoButtonColor = true
-	local corner = Instance.new("UICorner")
-	corner.CornerRadius = UDim.new(0, 8)
-	corner.Parent = b
+	b.Modal = true
+	b.ZIndex = 22
 	b.Parent = parent
+	local rule = Instance.new("Frame")
+	rule.BorderSizePixel = 0
+	rule.BackgroundColor3 = BLOOD
+	rule.Size = UDim2.fromOffset(if primary then 34 else 0, 2)
+	rule.Position = UDim2.new(0, 0, 1, -4)
+	rule.ZIndex = 22
+	rule.Parent = b
+	local rest = rule.Size
+	local fast = TweenInfo.new(0.16, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+	b.MouseEnter:Connect(function()
+		TweenService:Create(b, fast, { TextColor3 = Color3.new(1, 1, 1) }):Play()
+		TweenService:Create(rule, fast, { Size = UDim2.fromOffset(150, 2) }):Play()
+	end)
+	b.MouseLeave:Connect(function()
+		TweenService:Create(b, fast, { TextColor3 = if primary then BONE else ASH }):Play()
+		TweenService:Create(rule, fast, { Size = rest }):Play()
+	end)
 	return b
 end
 
@@ -67,31 +92,55 @@ function TitleScreen.mount(gui: ScreenGui, state: Instance, player: Player, onPl
 	local frame = Instance.new("Frame")
 	frame.Name = "Title"
 	frame.Size = UDim2.fromScale(1, 1)
-	frame.BackgroundColor3 = Color3.fromRGB(6, 4, 6)
-	frame.BackgroundTransparency = 0.5 -- the house shows through: the game is not "pitch black" at start
+	frame.BackgroundTransparency = 1
 	frame.ZIndex = 20
 	frame.Parent = gui
 
-	label(frame, { frame = UDim2.fromOffset(900, 90), pos = UDim2.fromScale(0.5, 0.16), size = 64, font = Enum.Font.Creepster, color = RED, text = "7 NIGHTS HUNTER" })
-	label(frame, { frame = UDim2.fromOffset(700, 30), pos = UDim2.fromScale(0.5, 0.29), size = 20, color = Color3.fromRGB(200, 190, 180), text = "It is blind. It hears everything." })
-	local stats = label(frame, { frame = UDim2.fromOffset(600, 26), pos = UDim2.fromScale(0.5, 0.35), size = 16, color = Color3.fromRGB(150, 150, 160) })
+	-- The dark the words sit on: heavy on the left, gone by the middle of the screen, a little at the foot.
+	local shade = Instance.new("Frame")
+	shade.Size = UDim2.fromScale(1, 1)
+	shade.BackgroundColor3 = Color3.fromRGB(4, 3, 5)
+	shade.BorderSizePixel = 0
+	shade.ZIndex = 20
+	shade.Parent = frame
+	local g = Instance.new("UIGradient")
+	g.Transparency = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.05), NumberSequenceKeypoint.new(0.42, 0.45), NumberSequenceKeypoint.new(0.75, 0.92), NumberSequenceKeypoint.new(1, 0.8) })
+	g.Parent = shade
 
-	local play = button(frame, "PLAY", UDim2.fromScale(0.5, 0.45), RED)
-	local how = button(frame, "HOW TO PLAY", UDim2.new(0.5, 0, 0.45, 66), Color3.fromRGB(40, 36, 44))
+	-- Everything that is not the backdrop. Scales with the height of the screen, so it fits a phone.
+	local content = Instance.new("Frame")
+	content.BackgroundTransparency = 1
+	content.ZIndex = 21
+	content.Parent = frame
+	local scale = Instance.new("UIScale")
+	scale.Parent = content
 
-	local help = label(frame, {
-		frame = UDim2.fromOffset(620, 360),
-		pos = UDim2.new(0.5, 0, 0.45, 136),
-		size = 16,
-		font = Enum.Font.Code,
-		color = Color3.fromRGB(215, 210, 200),
-		alignX = Enum.TextXAlignment.Left,
-		text = HELP,
-	})
+	label(content, { frame = UDim2.fromOffset(700, 100), pos = UDim2.new(MARGIN, 0, 0.5, -270), size = 104, font = Enum.Font.Creepster, color = BLOOD, text = "7 NIGHTS", alignY = Enum.TextYAlignment.Center })
+	label(content, { frame = UDim2.fromOffset(700, 100), pos = UDim2.new(MARGIN, 0, 0.5, -178), size = 104, font = Enum.Font.Creepster, color = BONE, text = "HUNTER", alignY = Enum.TextYAlignment.Center })
+	label(content, { frame = UDim2.fromOffset(520, 28), pos = UDim2.new(MARGIN, 2, 0.5, -74), size = 20, font = Enum.Font.GothamMedium, color = ASH, text = "It is blind. It hears everything." })
+
+	local play = menuLine(content, "PLAY", -20, true)
+	local how = menuLine(content, "HOW TO PLAY", 34, false)
+	local stats = label(content, { frame = UDim2.fromOffset(420, 22), pos = UDim2.new(MARGIN, 2, 0.5, 106), size = 15, color = Color3.fromRGB(116, 110, 106) })
+
+	local help = Instance.new("Frame")
+	help.AnchorPoint = Vector2.new(1, 0.5)
+	help.Position = UDim2.new(1 - MARGIN * 0.6, 0, 0.5, 0)
+	help.Size = UDim2.fromOffset(520, 430)
+	help.BackgroundColor3 = Color3.fromRGB(8, 6, 8)
+	help.BackgroundTransparency = 0.12
+	help.BorderSizePixel = 0
 	help.Visible = false
+	help.ZIndex = 21
+	help.Parent = content
+	local stroke = Instance.new("UIStroke")
+	stroke.Color = Color3.fromRGB(70, 24, 26)
+	stroke.Parent = help
+	label(help, { frame = UDim2.new(1, -48, 1, -44), pos = UDim2.fromOffset(24, 22), size = 16, rich = true, color = BONE, text = HELP })
 
 	local dismissed = false
 	local lastPhase = nil
+	local camStart = os.clock()
 
 	play.Activated:Connect(function()
 		dismissed = true
@@ -99,6 +148,37 @@ function TitleScreen.mount(gui: ScreenGui, state: Instance, player: Player, onPl
 	end)
 	how.Activated:Connect(function()
 		help.Visible = not help.Visible
+	end)
+
+	-- The camera: on the rug inside the front door, drifting a little, looking up at the carved pillar.
+	local owned = false
+	RunService:BindToRenderStep("NightHunterTitleCamera", Enum.RenderPriority.Camera.Value + 2, function()
+		local camera = Workspace.CurrentCamera
+		local viewport = camera and camera.ViewportSize
+		if viewport then
+			local s = math.clamp(viewport.Y / 760, 0.5, 1.15)
+			scale.Scale = s
+			content.Size = UDim2.fromScale(1 / s, 1 / s)
+		end
+		local house = Workspace:FindFirstChild("NightHunterHouse")
+		local origin = house and house:GetAttribute("Origin")
+		local open = frame.Visible and origin ~= nil
+		if open then
+			owned = true
+			camera.CameraType = Enum.CameraType.Scriptable
+			local t = os.clock() - camStart
+			local eye = origin + Vector3.new(-5 + math.sin(t * 0.09) * 5, 7.5 + math.sin(t * 0.13) * 0.5, 80 + math.sin(t * 0.06) * 2)
+			camera.CFrame = CFrame.lookAt(eye, origin + Vector3.new(4, 12, 30))
+			camera.FieldOfView = 62
+		elseif owned then
+			owned = false
+			camera.CameraType = Enum.CameraType.Custom
+			camera.FieldOfView = 70
+			local humanoid = player.Character and player.Character:FindFirstChildOfClass("Humanoid")
+			if humanoid then
+				camera.CameraSubject = humanoid
+			end
+		end
 	end)
 
 	local title = {}
@@ -112,7 +192,7 @@ function TitleScreen.mount(gui: ScreenGui, state: Instance, player: Player, onPl
 		play.Text = if phase == "Waiting" then "PLAY" else "JOIN THE NIGHT"
 		local best = player:GetAttribute("BestNight") or 0
 		local escapes = player:GetAttribute("Escapes") or 0
-		stats.Text = if best > 0 then ("Best: night %d   ·   Escapes: %d"):format(best, escapes) else "No saved runs yet"
+		stats.Text = if best > 0 then ("Best night %d   ·   Escapes %d"):format(best, escapes) else ""
 		frame.Visible = not dismissed
 	end
 

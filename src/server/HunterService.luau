@@ -81,9 +81,10 @@ local function buildHunterModel(parent)
 	steps.Name = "Steps"
 	steps.SoundId = Sounds.hunterSteps
 	steps.Looped = true
-	steps.Volume = 1.2
-	steps.RollOffMinDistance = 8
-	steps.RollOffMaxDistance = 70
+	steps.Volume = 2.2
+	steps.RollOffMode = Enum.RollOffMode.InverseTapered
+	steps.RollOffMinDistance = 16
+	steps.RollOffMaxDistance = 130
 	steps.Parent = root
 	local growl = Instance.new("Sound")
 	growl.Name = "Growl"
@@ -355,15 +356,24 @@ function HunterService.start(house, hooks)
 	-- hunter never cuts through a wall, and the flight of stairs it is on is never abandoned halfway.
 	local function stepToward(goalRoom: number, goalPos: Vector3, speed: number, dt: number): boolean
 		local room = currentRoom()
+		goalPos = origin + HouseGraph.offHole(goalRoom, goalPos - origin) -- (never out over the hall void)
 		if not hunter.route and room ~= goalRoom then
 			local hop = HouseGraph.nextStep(graph, room, goalRoom)
 			local pts = {}
-			local centre = origin + HouseGraph.roomCenter(room)
-			if flat(centre).Magnitude > 1.5 then
-				table.insert(pts, centre)
+			local from = hunter.pos - origin
+			local centre = HouseGraph.roomCenter(room)
+			-- by the room's centre, unless that is a hole in the floor (the landing's centre is the hall void)
+			if HouseGraph.offHole(room, centre) == centre and flat(origin + centre).Magnitude > 1.5 and #HouseGraph.detour(room, from, centre) == 0 then
+				table.insert(pts, origin + centre)
+				from = centre
 			end
 			local kind = "door"
-			for _, p in HouseGraph.route(graph, room, hop, hunter.pos - origin) do
+			for i, p in HouseGraph.route(graph, room, hop, hunter.pos - origin) do
+				if i == 1 then
+					for _, corner in HouseGraph.detour(room, from, p) do -- round the gallery, not across the void
+						table.insert(pts, origin + corner)
+					end
+				end
 				table.insert(pts, origin + p)
 				if math.abs(p.Y - graph.rooms[room].floorY) > 0.5 then
 					kind = "stairs"
@@ -372,6 +382,15 @@ function HunterService.start(house, hooks)
 			hunter.route = { pts = pts, i = 1, kind = kind }
 		end
 
+		if not hunter.route and room == goalRoom then
+			local corners = HouseGraph.detour(room, hunter.pos - origin, goalPos - origin)
+			if #corners > 0 then
+				for i, corner in corners do
+					corners[i] = origin + corner
+				end
+				hunter.route = { pts = corners, i = 1, kind = "door" }
+			end
+		end
 		local target = goalPos
 		local route = hunter.route
 		if route then
